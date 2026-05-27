@@ -19,16 +19,17 @@
 <div class="wrapper">
   <div class="table-head">
     <h3>{teamName} vs League Average</h3>
-    <p class="sub muted">Sorted by biggest difference. Green = team scores more than average. Red = less.</p>
+    <p class="sub muted">Sorted by biggest difference. Green = above league average. Red = below.</p>
   </div>
   <div class="table-wrap">
     <table>
       <thead>
         <tr>
           <th>Situation</th>
-          <th>{teamName}</th>
+          <th>Exp. Runs</th>
           <th>Lg Avg</th>
-          <th>Edge</th>
+          <th>Diff</th>
+          <th>Freq</th>
         </tr>
       </thead>
       <tbody>
@@ -43,6 +44,7 @@
             >
               {row.delta >= 0 ? "+" : ""}{row.delta.toFixed(3)}
             </td>
+            <td class="mono dim">{(row.frequency * 100).toFixed(1)}%</td>
           </tr>
         {/each}
       </tbody>
