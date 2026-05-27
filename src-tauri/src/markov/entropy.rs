@@ -1,6 +1,5 @@
 use anyhow::Result;
 use rusqlite::Connection;
-use std::collections::HashMap;
 
 use super::pitch_seq::PitchTransitionSet;
 

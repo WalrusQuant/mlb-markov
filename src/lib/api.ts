@@ -14,8 +14,10 @@ export async function getDbStatus(): Promise<DbStatus> {
   return await invoke<DbStatus>("get_db_status");
 }
 
-export async function importSeason(season: number): Promise<ImportResult> {
-  return await invoke<ImportResult>("import_season", { season });
+export async function importSeason(season?: number): Promise<ImportResult> {
+  return await invoke<ImportResult>("import_season", {
+    season: season ?? null,
+  });
 }
 
 export async function onImportProgress(
@@ -27,11 +29,11 @@ export async function onImportProgress(
 }
 
 export async function getOffenseTransitions(
-  season: number,
+  season?: number | null,
   teamId?: number | null,
 ): Promise<OffenseBundle> {
   return await invoke<OffenseBundle>("get_offense_transitions", {
-    season,
+    season: season ?? null,
     teamId: teamId ?? null,
   });
 }
@@ -42,20 +44,20 @@ export async function getTeams(): Promise<TeamOption[]> {
 
 export async function searchPitchers(
   query: string,
-  season: number,
+  season?: number,
 ): Promise<PitcherSearchResult[]> {
   return await invoke<PitcherSearchResult[]>("search_pitchers", {
     query,
-    season,
+    season: season ?? null,
   });
 }
 
 export async function getPitchSequences(
   pitcherId: number,
-  season: number,
+  season?: number,
 ): Promise<PitchSequenceBundle> {
   return await invoke<PitchSequenceBundle>("get_pitch_sequences", {
     pitcherId,
-    season,
+    season: season ?? null,
   });
 }

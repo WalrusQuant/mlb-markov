@@ -28,7 +28,13 @@ pub fn get_db_status(state: State<'_, AppState>) -> Result<DbStatus, String> {
 
     Ok(DbStatus {
         db_path: state.db_path.clone(),
-        games_count: count("games"),
+        games_count: conn
+            .query_row(
+                "SELECT COUNT(*) FROM games WHERE data_fetched = 1",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap_or(0),
         plays_count: count("plays"),
         pitches_count: count("pitches"),
         teams_count: count("teams"),
@@ -58,8 +64,9 @@ pub struct ImportResult {
 pub async fn import_season(
     state: State<'_, AppState>,
     app_handle: AppHandle,
-    season: i32,
+    season: Option<i32>,
 ) -> Result<ImportResult, String> {
+    let season = season.unwrap_or_else(crate::default_season);
     let client = api::http_client().map_err(|e| e.to_string())?;
 
     // Step 1: Fetch schedule
@@ -130,7 +137,7 @@ pub async fn import_season(
             .ok();
 
         // Rate limit: 1 second between requests
-        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+        tokio::time::sleep(std::time::Duration::from_millis(250)).await;
 
         let raw = match api::fetch_play_by_play(&client, *game_pk).await {
             Ok(r) => r,

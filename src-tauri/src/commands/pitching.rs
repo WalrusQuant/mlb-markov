@@ -49,8 +49,9 @@ pub struct PitchSequenceBundle {
 pub fn search_pitchers(
     state: State<'_, AppState>,
     query: String,
-    season: i32,
+    season: Option<i32>,
 ) -> Result<Vec<PitcherSearchResult>, String> {
+    let season = season.unwrap_or_else(crate::default_season);
     let conn = state.db.lock().map_err(|e| e.to_string())?;
 
     let search = format!("%{}%", query);
@@ -92,8 +93,9 @@ pub fn search_pitchers(
 pub fn get_pitch_sequences(
     state: State<'_, AppState>,
     pitcher_id: i64,
-    season: i32,
+    season: Option<i32>,
 ) -> Result<PitchSequenceBundle, String> {
+    let season = season.unwrap_or_else(crate::default_season);
     let conn = state.db.lock().map_err(|e| e.to_string())?;
 
     // Get pitcher name

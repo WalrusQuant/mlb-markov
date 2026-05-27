@@ -11,7 +11,7 @@
   let loading = $state(false);
   let searching = $state(false);
   let error = $state<string | null>(null);
-  let season = 2024;
+  let season: number | undefined = undefined;
 
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 

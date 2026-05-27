@@ -5,6 +5,7 @@ pub mod markov;
 
 use std::sync::Mutex;
 
+use chrono::Utc;
 use tauri::Manager;
 
 pub struct AppState {
@@ -44,4 +45,12 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+pub fn default_season() -> i32 {
+    Utc::now()
+        .format("%Y")
+        .to_string()
+        .parse()
+        .unwrap_or(2026)
 }

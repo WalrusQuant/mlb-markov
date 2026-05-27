@@ -285,7 +285,7 @@ A built-in education page that explains the concepts so anyone can understand wh
 ### Design
 - Svelte component-based, one section per route
 - Math rendered with KaTeX or similar (clean formulas, not images)
-- Each concept tied back to a real data point from the app ("here's what this looks like for the 2024 Dodgers")
+- Each concept tied back to a real data point from the app ("here's what this looks like for the 2025 Dodgers")
 - Collapsible sections, progress through top to bottom
 
 ## Views / Features
@@ -312,7 +312,7 @@ A built-in education page that explains the concepts so anyone can understand wh
 
 ## Scope for V1 Release
 Keep it tight for the first version:
-- Bootstrap: pull 2024 season play-by-play
+- Bootstrap: pull 2025 season play-by-play
 - Offense view: heatmap + expected runs table
 - Pitching view: one pitcher's sequence matrix + predictability score
 - Post format: "I built a Markov chain model for MLB at-bats. Here's what every base-out state is worth."

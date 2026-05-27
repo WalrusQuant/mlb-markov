@@ -49,7 +49,7 @@
     });
 
     try {
-      result = await importSeason(2024);
+      result = await importSeason();
       await loadStatus();
     } catch (e) {
       error = String(e);
@@ -145,7 +145,7 @@
       </div>
     {:else}
       <button class="accent" onclick={startImport} disabled={importing}>
-        Bootstrap 2024 Season
+        Bootstrap Current Season
       </button>
     {/if}
 

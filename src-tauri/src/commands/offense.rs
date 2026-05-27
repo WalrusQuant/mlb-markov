@@ -33,9 +33,10 @@ pub struct TeamOption {
 #[tauri::command]
 pub fn get_offense_transitions(
     state: State<'_, AppState>,
-    season: i32,
+    season: Option<i32>,
     team_id: Option<i32>,
 ) -> Result<OffenseBundle, String> {
+    let season = season.unwrap_or_else(crate::default_season);
     let conn = state.db.lock().map_err(|e| e.to_string())?;
 
     let tm = transitions::compute_offense_transitions(&conn, season, team_id)

@@ -11,7 +11,7 @@
   let selectedTeam = $state<number | null>(null);
   let loading = $state(false);
   let error = $state<string | null>(null);
-  let season = 2024;
+  let season: number | undefined = undefined;
 
   async function load() {
     loading = true;
