@@ -56,6 +56,10 @@
 
   function onInput() {
     if (debounceTimer) clearTimeout(debounceTimer);
+    if (skipNextSearch) {
+      skipNextSearch = false;
+      return;
+    }
     if (query.length < 2) {
       results = [];
       return;
@@ -69,7 +73,11 @@
     }, 300);
   }
 
+  let skipNextSearch = false;
+
   async function selectPitcher(pitcher: PitcherSearchResult) {
+    skipNextSearch = true;
+    if (debounceTimer) clearTimeout(debounceTimer);
     query = pitcher.fullName;
     results = [];
     loading = true;
