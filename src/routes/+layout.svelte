@@ -128,7 +128,7 @@
   .main {
     flex: 1;
     padding: 12px 24px 10px;
-    overflow: hidden;
+    overflow: auto;
     min-height: 0;
     overscroll-behavior: none;
   }
