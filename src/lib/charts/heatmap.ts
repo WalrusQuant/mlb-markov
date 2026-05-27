@@ -70,9 +70,9 @@ export function renderHeatmap(
   const svg = d3
     .select(container)
     .append("svg")
-    .attr("width", "100%")
+    .attr("width", width)
+    .attr("height", height)
     .attr("viewBox", `0 0 ${width} ${height}`)
-    .attr("preserveAspectRatio", "xMinYMin meet")
     .style("display", "block");
 
   const g = svg
@@ -88,6 +88,7 @@ export function renderHeatmap(
     .domain([0, maxVal]);
 
   const isLarge = n > 10;
+  const labelSize = n > 20 ? "7px" : n > 10 ? "9px" : "14px";
 
   for (let i = 0; i < n; i++) {
     for (let j = 0; j < n; j++) {
@@ -154,7 +155,7 @@ export function renderHeatmap(
     .attr("x", (_, i) => i * cellW + cellW / 2)
     .attr("y", -8)
     .attr("text-anchor", "middle")
-    .attr("font-size", n > 20 ? "7px" : "9px")
+    .attr("font-size", labelSize)
     .attr("fill", "var(--ink-mute)")
     .text((_, i) => shortLabels[i]);
 
@@ -167,7 +168,7 @@ export function renderHeatmap(
     .attr("y", (_, i) => i * cellH + cellH / 2)
     .attr("text-anchor", "end")
     .attr("dominant-baseline", "middle")
-    .attr("font-size", n > 20 ? "7px" : "9px")
+    .attr("font-size", labelSize)
     .attr("fill", "var(--ink-mute)")
     .text((_, i) => shortLabels[i]);
 
