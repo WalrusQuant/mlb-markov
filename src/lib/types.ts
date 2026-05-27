@@ -25,6 +25,7 @@ export type StateExpectedRuns = {
   state: string;
   label: string;
   expectedRuns: number;
+  frequency: number;
 };
 
 export type OffenseBundle = {
@@ -39,6 +40,29 @@ export type TeamOption = {
   teamId: number;
   name: string;
   abbreviation: string;
+};
+
+export type RunComparison = {
+  state: string;
+  label: string;
+  teamER: number;
+  leagueER: number;
+  delta: number;
+  frequency: number;
+};
+
+export type MomentumBundle = {
+  season: number;
+  teamId: number | null;
+  states: string[];
+  coldExpectedRuns: StateExpectedRuns[];
+  hotExpectedRuns: StateExpectedRuns[];
+  coldMatrix: number[][];
+  hotMatrix: number[][];
+  coldTotalPlays: number;
+  hotTotalPlays: number;
+  verdict: string;
+  overallDelta: number;
 };
 
 export type PitcherSearchResult = {

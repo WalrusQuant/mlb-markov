@@ -48,10 +48,11 @@
   }
 </script>
 
-<h1>Pitching: Sequence Predictability</h1>
-<p>Search for a pitcher to view their pitch-type transition matrix and predictability score.</p>
-
-<div class="search-area">
+<div class="page-header">
+  <div>
+    <h1>Pitching: Sequence Predictability</h1>
+    <p>Search for a pitcher to view their pitch-type transition matrix and predictability score.</p>
+  </div>
   <div class="search-wrap">
     <input
       type="text"
@@ -88,15 +89,16 @@
     pitchTypes={bundle.pitchTypes}
   />
 
-  <div class="section">
-    <PitchMatrix data={bundle.overallMatrix} title="Overall Pitch Transition Matrix" />
-  </div>
-
-  {#if bundle.countEntropy.length > 0}
-    <div class="section">
-      <CountBreakdown countEntropy={bundle.countEntropy} byCount={bundle.byCount} />
+  <div class="content-row">
+    <div class="matrix-col">
+      <PitchMatrix data={bundle.overallMatrix} title="Overall Pitch Transition Matrix" />
     </div>
-  {/if}
+    {#if bundle.countEntropy.length > 0}
+      <div class="entropy-col">
+        <CountBreakdown countEntropy={bundle.countEntropy} byCount={bundle.byCount} />
+      </div>
+    {/if}
+  </div>
 {:else}
   <div class="card">
     <p class="muted">Import play-by-play data from the Home page, then search for a pitcher above.</p>
@@ -104,12 +106,26 @@
 {/if}
 
 <style>
-  .search-area {
-    margin-bottom: 24px;
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 24px;
+    margin-bottom: 12px;
+  }
+  .page-header h1 {
+    font-size: 1.5rem;
+    margin-bottom: 2px;
+  }
+  .page-header p {
+    margin: 0;
+    font-size: 0.9rem;
   }
   .search-wrap {
     position: relative;
-    max-width: 400px;
+    min-width: 300px;
+    flex-shrink: 0;
+    padding-top: 4px;
   }
   .search-wrap input {
     width: 100%;
@@ -132,14 +148,14 @@
     justify-content: space-between;
     align-items: center;
     width: 100%;
-    padding: 10px 12px;
+    padding: 8px 12px;
     background: none;
     border: none;
     border-bottom: 1px solid var(--line-soft);
     color: var(--ink);
     text-align: left;
     cursor: pointer;
-    font-size: 0.93rem;
+    font-size: 0.9rem;
   }
   .dropdown-item:hover {
     background: var(--bg-soft);
@@ -149,13 +165,25 @@
     border-bottom: none;
   }
   .meta {
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     flex-shrink: 0;
   }
-  .section {
-    margin-top: 20px;
+  .content-row {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 16px;
+    margin-top: 12px;
+    align-items: start;
   }
   .bad {
     color: var(--bad);
+  }
+  @media (max-width: 900px) {
+    .page-header {
+      flex-direction: column;
+    }
+    .content-row {
+      grid-template-columns: 1fr;
+    }
   }
 </style>

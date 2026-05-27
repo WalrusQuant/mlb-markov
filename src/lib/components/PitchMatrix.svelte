@@ -9,11 +9,11 @@
 
   $effect(() => {
     if (container && data.types.length > 0) {
-      const size = Math.max(300, data.types.length * 60 + 100);
+      const size = Math.max(300, data.types.length * 70 + 80);
       renderHeatmap(container, data.types, data.matrix, undefined, {
         width: size,
         height: size,
-        margin: { top: 50, right: 10, bottom: 10, left: 60 },
+        margin: { top: 40, right: 10, bottom: 10, left: 50 },
       });
     }
   });
@@ -26,6 +26,7 @@
 
 <style>
   .pitch-heatmap {
-    overflow-x: auto;
+    width: 100%;
+    max-width: 420px;
   }
 </style>

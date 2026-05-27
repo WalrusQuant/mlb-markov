@@ -52,6 +52,10 @@ html,
 body {
   margin: 0;
   padding: 0;
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  -webkit-overflow-scrolling: auto;
   background: var(--bg);
   color: var(--ink);
   font-family: var(--sans);
@@ -156,8 +160,7 @@ select:focus {
 
 .shell {
   max-width: 1600px;
-  margin: 0 auto;
-  padding: 0 24px 80px;
+  padding: 0;
 }
 
 .card {

@@ -7,6 +7,7 @@ pub struct TransitionMatrix {
     pub states: Vec<String>,
     pub matrix: Vec<Vec<f64>>,
     pub runs: Vec<Vec<f64>>,
+    pub counts: Vec<Vec<i64>>,
 }
 
 pub fn compute_offense_transitions(
@@ -94,7 +95,129 @@ pub fn compute_offense_transitions(
         states: ALL_STATES.iter().map(|s| s.to_string()).collect(),
         matrix,
         runs,
+        counts,
     })
+}
+
+fn normalize_matrix(counts: &[Vec<i64>], runs_total: &[Vec<f64>]) -> (Vec<Vec<f64>>, Vec<Vec<f64>>) {
+    let n = counts.len();
+    let mut matrix = vec![vec![0.0f64; n]; n];
+    let mut runs = vec![vec![0.0f64; n]; n];
+
+    for i in 0..n {
+        let row_sum: i64 = counts[i].iter().sum();
+        if row_sum > 0 {
+            for j in 0..n {
+                matrix[i][j] = counts[i][j] as f64 / row_sum as f64;
+                if counts[i][j] > 0 {
+                    runs[i][j] = runs_total[i][j] / counts[i][j] as f64;
+                }
+            }
+        }
+    }
+
+    let abs_idx = n - 1;
+    matrix[abs_idx][abs_idx] = 1.0;
+
+    (matrix, runs)
+}
+
+pub fn compute_momentum_transitions(
+    conn: &Connection,
+    season: i32,
+    team_id: Option<i32>,
+) -> Result<(TransitionMatrix, TransitionMatrix)> {
+    let n = ALL_STATES.len();
+    let mut cold_counts = vec![vec![0i64; n]; n];
+    let mut cold_runs = vec![vec![0.0f64; n]; n];
+    let mut hot_counts = vec![vec![0i64; n]; n];
+    let mut hot_runs = vec![vec![0.0f64; n]; n];
+
+    let team_filter = match team_id {
+        Some(_) => "AND (g.home_team_id = ?2 OR g.away_team_id = ?2)",
+        None => "",
+    };
+
+    let query = format!(
+        "WITH play_context AS (
+            SELECT p.outs_before, p.bases_before, p.outs_after, p.bases_after, p.runs_scored,
+                   COALESCE(
+                       SUM(p.runs_scored) OVER (
+                           PARTITION BY p.game_pk, p.inning, p.half
+                           ORDER BY p.id
+                           ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+                       ), 0
+                   ) AS inning_runs_before
+            FROM plays p
+            JOIN games g ON g.game_pk = p.game_pk
+            WHERE strftime('%Y', g.game_date) = ?1
+              {}
+        )
+        SELECT outs_before, bases_before, outs_after, bases_after, runs_scored, inning_runs_before
+        FROM play_context",
+        team_filter
+    );
+
+    let mut stmt = conn.prepare(&query)?;
+
+    let params: Vec<Box<dyn rusqlite::types::ToSql>> = match team_id {
+        Some(tid) => vec![
+            Box::new(season.to_string()),
+            Box::new(tid as i64),
+        ],
+        None => vec![Box::new(season.to_string())],
+    };
+    let param_refs: Vec<&dyn rusqlite::types::ToSql> = params.iter().map(|p| p.as_ref()).collect();
+    let mut rows = stmt.query(param_refs.as_slice())?;
+
+    while let Some(row) = rows.next()? {
+        let outs_before: i32 = row.get(0)?;
+        let bases_before: String = row.get(1)?;
+        let outs_after: i32 = row.get(2)?;
+        let bases_after: String = row.get(3)?;
+        let runs_scored: i32 = row.get(4)?;
+        let inning_runs_before: i64 = row.get(5)?;
+
+        let from_state = encode_state(outs_before, &bases_before);
+        let to_state = encode_state(outs_after, &bases_after);
+
+        let from_idx = match ALL_STATES.iter().position(|&s| s == from_state) {
+            Some(i) => i,
+            None => continue,
+        };
+        let to_idx = match ALL_STATES.iter().position(|&s| s == to_state) {
+            Some(i) => i,
+            None => continue,
+        };
+
+        if inning_runs_before == 0 {
+            cold_counts[from_idx][to_idx] += 1;
+            cold_runs[from_idx][to_idx] += runs_scored as f64;
+        } else {
+            hot_counts[from_idx][to_idx] += 1;
+            hot_runs[from_idx][to_idx] += runs_scored as f64;
+        }
+    }
+
+    let (cold_matrix, cold_runs_avg) = normalize_matrix(&cold_counts, &cold_runs);
+    let (hot_matrix, hot_runs_avg) = normalize_matrix(&hot_counts, &hot_runs);
+
+    let states: Vec<String> = ALL_STATES.iter().map(|s| s.to_string()).collect();
+
+    Ok((
+        TransitionMatrix {
+            states: states.clone(),
+            matrix: cold_matrix,
+            runs: cold_runs_avg,
+            counts: cold_counts,
+        },
+        TransitionMatrix {
+            states,
+            matrix: hot_matrix,
+            runs: hot_runs_avg,
+            counts: hot_counts,
+        },
+    ))
 }
 
 fn store_transitions(

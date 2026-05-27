@@ -75,7 +75,7 @@
   });
 </script>
 
-<h1>MLB Markov</h1>
+<h1 class="page-title">MLB Markov</h1>
 <p>State transition models for MLB offense and pitching, built on Markov chain logic.</p>
 
 <div class="grid">
@@ -92,7 +92,6 @@
   </div>
 </div>
 
-<hr />
 
 <div class="card">
   <h3>Database Status</h3>
@@ -166,11 +165,15 @@
 </div>
 
 <style>
+  .page-title {
+    font-size: 1.5rem;
+    margin-bottom: 2px;
+  }
   .grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 16px;
-    margin-bottom: 24px;
+    margin-bottom: 16px;
   }
   .stats-row {
     display: flex;

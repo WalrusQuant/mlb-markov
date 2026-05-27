@@ -44,12 +44,12 @@
 <style>
   .count-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 12px;
-    margin-top: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 8px;
+    margin-top: 10px;
   }
   .count-item {
-    padding: 10px;
+    padding: 8px;
     background: var(--bg-soft);
     border-radius: var(--radius-sm);
   }

@@ -5,6 +5,7 @@ import type {
   ImportProgress,
   ImportResult,
   OffenseBundle,
+  MomentumBundle,
   TeamOption,
   PitcherSearchResult,
   PitchSequenceBundle,
@@ -40,6 +41,16 @@ export async function getOffenseTransitions(
 
 export async function getTeams(): Promise<TeamOption[]> {
   return await invoke<TeamOption[]>("get_teams");
+}
+
+export async function getMomentumAnalysis(
+  season?: number | null,
+  teamId?: number | null,
+): Promise<MomentumBundle> {
+  return await invoke<MomentumBundle>("get_momentum_analysis", {
+    season: season ?? null,
+    teamId: teamId ?? null,
+  });
 }
 
 export async function searchPitchers(

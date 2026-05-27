@@ -40,6 +40,7 @@ pub fn run() {
             commands::data::import_season,
             commands::offense::get_offense_transitions,
             commands::offense::get_teams,
+            commands::offense::get_momentum_analysis,
             commands::pitching::search_pitchers,
             commands::pitching::get_pitch_sequences,
         ])

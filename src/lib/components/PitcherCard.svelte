@@ -70,15 +70,15 @@
     flex-shrink: 0;
   }
   .entropy-section {
-    margin-top: 16px;
-    padding-top: 16px;
+    margin-top: 12px;
+    padding-top: 12px;
     border-top: 1px solid var(--line-soft);
   }
   .entropy-header {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
   }
   .label {
     font-size: 0.85rem;

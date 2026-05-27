@@ -17,38 +17,50 @@
   }
 </script>
 
-<header class="top">
-  <div class="shell row">
-    <a class="brand" href="/" aria-label="MLB Markov home">
-      <span class="diamond" aria-hidden="true"></span>
-      <span class="brand-text">
-        <span class="brand-title">MLB Markov</span>
-        <span class="brand-sub">State Transition Models</span>
-      </span>
-    </a>
-    <nav>
-      {#each links as link}
-        <a class:active={isActive(link.href)} href={link.href}>{link.label}</a>
-      {/each}
-    </nav>
-  </div>
-</header>
+<div class="app-frame">
+  <header class="top">
+    <div class="shell row">
+      <a class="brand" href="/" aria-label="MLB Markov home">
+        <span class="diamond" aria-hidden="true"></span>
+        <span class="brand-text">
+          <span class="brand-title">MLB Markov</span>
+          <span class="brand-sub">State Transition Models</span>
+        </span>
+      </a>
+      <nav>
+        {#each links as link}
+          <a class:active={isActive(link.href)} href={link.href}>{link.label}</a>
+        {/each}
+      </nav>
+    </div>
+  </header>
 
-<main class="shell main">
-  {@render children?.()}
-</main>
+  <main class="main">
+    <div class="shell">
+      {@render children?.()}
+    </div>
+  </main>
 
-<footer class="shell footer">
-  <p class="muted">
-    Data from <a href="https://statsapi.mlb.com" target="_blank" rel="noopener">statsapi.mlb.com</a> · Built with Rust + Tauri · Markov chain analysis
-  </p>
-</footer>
+  <footer class="footer">
+    <p class="muted">
+      Data from <a href="https://statsapi.mlb.com" target="_blank" rel="noopener">statsapi.mlb.com</a> · Built with Rust + Tauri · Markov chain analysis
+    </p>
+  </footer>
+</div>
 
 <style>
+  .app-frame {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
   .top {
     position: sticky;
     top: 0;
     z-index: 10;
+    flex-shrink: 0;
     background: color-mix(in srgb, var(--bg) 92%, transparent);
     backdrop-filter: saturate(140%) blur(10px);
     -webkit-backdrop-filter: saturate(140%) blur(10px);
@@ -58,8 +70,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding-top: 14px;
-    padding-bottom: 14px;
+    padding: 10px 24px;
   }
   .brand {
     display: flex;
@@ -115,14 +126,22 @@
     color: var(--bg-elev);
   }
   .main {
-    padding-top: 28px;
+    flex: 1;
+    padding: 12px 24px 10px;
+    overflow: hidden;
+    min-height: 0;
+    overscroll-behavior: none;
+  }
+  .main > :global(.shell) {
+    max-width: 1600px;
+    margin: 0;
   }
   .footer {
-    padding-top: 24px;
-    padding-bottom: 32px;
-    margin-top: 40px;
+    flex-shrink: 0;
+    max-width: 1600px;
+    padding: 6px 24px 8px;
     border-top: 1px solid var(--line-soft);
-    font-size: 0.85rem;
+    font-size: 0.75rem;
   }
   .footer p {
     margin: 0;
