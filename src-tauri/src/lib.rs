@@ -39,6 +39,8 @@ pub fn run() {
             commands::data::import_season,
             commands::offense::get_offense_transitions,
             commands::offense::get_teams,
+            commands::pitching::search_pitchers,
+            commands::pitching::get_pitch_sequences,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

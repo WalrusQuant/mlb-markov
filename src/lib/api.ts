@@ -6,6 +6,8 @@ import type {
   ImportResult,
   OffenseBundle,
   TeamOption,
+  PitcherSearchResult,
+  PitchSequenceBundle,
 } from "./types";
 
 export async function getDbStatus(): Promise<DbStatus> {
@@ -36,4 +38,24 @@ export async function getOffenseTransitions(
 
 export async function getTeams(): Promise<TeamOption[]> {
   return await invoke<TeamOption[]>("get_teams");
+}
+
+export async function searchPitchers(
+  query: string,
+  season: number,
+): Promise<PitcherSearchResult[]> {
+  return await invoke<PitcherSearchResult[]>("search_pitchers", {
+    query,
+    season,
+  });
+}
+
+export async function getPitchSequences(
+  pitcherId: number,
+  season: number,
+): Promise<PitchSequenceBundle> {
+  return await invoke<PitchSequenceBundle>("get_pitch_sequences", {
+    pitcherId,
+    season,
+  });
 }

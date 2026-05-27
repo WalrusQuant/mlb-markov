@@ -40,3 +40,34 @@ export type TeamOption = {
   name: string;
   abbreviation: string;
 };
+
+export type PitcherSearchResult = {
+  playerId: number;
+  fullName: string;
+  team: string;
+  totalPitches: number;
+};
+
+export type PitchMatrixData = {
+  types: string[];
+  matrix: number[][];
+  occurrences: number[][];
+};
+
+export type CountEntropyData = {
+  countState: string;
+  entropy: number;
+  pitches: number;
+};
+
+export type PitchSequenceBundle = {
+  pitcherId: number;
+  pitcherName: string;
+  season: number;
+  pitchTypes: string[];
+  overallMatrix: PitchMatrixData;
+  byCount: Record<string, PitchMatrixData>;
+  overallEntropy: number;
+  totalPitches: number;
+  countEntropy: CountEntropyData[];
+};
