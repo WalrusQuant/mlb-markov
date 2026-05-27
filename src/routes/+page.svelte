@@ -14,6 +14,9 @@
   let unlisten: (() => void) | null = null;
   let timer: ReturnType<typeof setInterval> | null = null;
 
+  let isEmpty = $derived(status !== null && status.gamesCount === 0);
+  let hasData = $derived(status !== null && status.gamesCount > 0);
+
   function fmt(n: number): string {
     return n.toLocaleString();
   }
@@ -76,51 +79,81 @@
 </script>
 
 <h1 class="page-title">MLB Markov</h1>
-<p>State transition models for MLB offense and pitching, built on Markov chain logic.</p>
+<p class="page-sub">Markov chain models applied to real MLB play-by-play data. Every at-bat and every pitch from the current season, analyzed for patterns.</p>
 
 <div class="grid">
-  <div class="card">
-    <h3>Offense: At-Bat Transitions</h3>
-    <p>25 base-out state transition heatmap and expected runs (RE24) computed from play-by-play data.</p>
-    <a href="/offense">View Offense</a>
-  </div>
+  <a href="/offense" class="card link-card">
+    <h3>Offense: What Happens Next?</h3>
+    <p>
+      Every at-bat moves the game between base/out situations. This model tracks
+      every transition across the entire season and computes how many runs teams
+      actually score from each situation. Compare any team to league average to
+      find where they over- or underperform. Includes a momentum analysis — does
+      scoring early in an inning lead to more scoring?
+    </p>
+    <span class="card-link">Open Offense →</span>
+  </a>
 
-  <div class="card">
-    <h3>Pitching: Sequence Predictability</h3>
-    <p>Pitch-type transition matrices and Shannon entropy scores. Find the most predictable pitchers in MLB.</p>
-    <a href="/pitching">View Pitching</a>
-  </div>
+  <a href="/pitching" class="card link-card">
+    <h3>Pitching: What's Coming Next?</h3>
+    <p>
+      Look up any pitcher and see what they throw at every count. The model
+      tracks pitch-to-pitch sequences — after a fastball at 0-2, what comes
+      next? Select a count to see how a pitcher's approach changes when ahead,
+      behind, or even. Includes a predictability score measuring how easy it is
+      to guess the next pitch.
+    </p>
+    <span class="card-link">Open Pitching →</span>
+  </a>
 </div>
 
-
 <div class="card">
-  <h3>Database Status</h3>
+  <h3>Data</h3>
+
   {#if error}
     <p class="bad">{error}</p>
-  {:else if !status}
-    <p class="muted">Loading...</p>
-  {:else if status.gamesCount === 0 && !importing && !result}
-    <p class="muted">Database empty -- import data to get started.</p>
   {/if}
 
-  <div class="stats-row">
-    <div class="stat">
-      <span class="stat-value mono">{status ? fmt(status.gamesCount) : "--"}</span>
-      <span class="stat-label muted">Games</span>
+  {#if isEmpty && !importing && !result}
+    <div class="empty-state">
+      <p><strong>No data loaded yet.</strong> Click the button below to download play-by-play data for every completed game this season from the MLB Stats API.</p>
+      <p class="muted detail">
+        The initial load fetches every plate appearance and every individual pitch — typically
+        800+ games, 60,000+ plays, and 200,000+ pitches. This takes about <strong>3-4 minutes</strong> on
+        the first run. After that, updates only pull new games (a few seconds).
+      </p>
     </div>
-    <div class="stat">
-      <span class="stat-value mono">{status ? fmt(status.playsCount) : "--"}</span>
-      <span class="stat-label muted">Plays</span>
+  {/if}
+
+  {#if hasData}
+    <div class="stats-row">
+      <div class="stat">
+        <span class="stat-value mono">{fmt(status!.gamesCount)}</span>
+        <span class="stat-label muted">Games</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value mono">{fmt(status!.playsCount)}</span>
+        <span class="stat-label muted">Plays</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value mono">{fmt(status!.pitchesCount)}</span>
+        <span class="stat-label muted">Pitches</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value mono">{fmt(status!.playersCount)}</span>
+        <span class="stat-label muted">Players</span>
+      </div>
     </div>
-    <div class="stat">
-      <span class="stat-value mono">{status ? fmt(status.pitchesCount) : "--"}</span>
-      <span class="stat-label muted">Pitches</span>
-    </div>
-    <div class="stat">
-      <span class="stat-value mono">{status ? fmt(status.playersCount) : "--"}</span>
-      <span class="stat-label muted">Players</span>
-    </div>
-  </div>
+
+    {#if status!.lastGameDate}
+      <p class="last-update muted">
+        Data through <strong>{status!.lastGameDate}</strong>
+        {#if status!.pendingGames > 0}
+          · at least <strong>{status!.pendingGames}</strong> new games available
+        {/if}
+      </p>
+    {/if}
+  {/if}
 
   <div class="import-section">
     {#if importing}
@@ -144,8 +177,11 @@
       </div>
     {:else}
       <button class="accent" onclick={startImport} disabled={importing}>
-        Bootstrap Current Season
+        {isEmpty ? "Bootstrap Current Season" : "Update Data"}
       </button>
+      {#if hasData}
+        <span class="muted update-hint">Pulls only new games since last update.</span>
+      {/if}
     {/if}
 
     {#if result && !importing}
@@ -154,10 +190,10 @@
           Imported <strong>{fmt(result.gamesImported)}</strong> games,
           <strong>{fmt(result.playsInserted)}</strong> plays,
           <strong>{fmt(result.pitchesInserted)}</strong> pitches
-          {#if result.gamesSkipped > 0}
-            ({result.gamesSkipped} skipped)
-          {/if}
           in {elapsed}.
+          {#if result.gamesSkipped > 0}
+            <span class="muted">{result.gamesSkipped} games skipped — API returned errors or data wasn't available. They'll retry on the next update.</span>
+          {/if}
         </p>
       </div>
     {/if}
@@ -169,16 +205,47 @@
     font-size: 1.5rem;
     margin-bottom: 2px;
   }
+  .page-sub {
+    font-size: 0.88rem;
+    margin: 0 0 16px;
+    max-width: 700px;
+  }
   .grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 16px;
     margin-bottom: 16px;
   }
+  .link-card {
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 150ms ease;
+  }
+  .link-card:hover {
+    border-color: var(--accent);
+    text-decoration: none;
+  }
+  .link-card p {
+    font-size: 0.84rem;
+    line-height: 1.45;
+  }
+  .card-link {
+    font-size: 0.84rem;
+    color: var(--accent);
+    font-weight: 600;
+  }
+  .empty-state p {
+    margin: 0 0 8px;
+    font-size: 0.9rem;
+  }
+  .detail {
+    font-size: 0.82rem;
+    line-height: 1.45;
+  }
   .stats-row {
     display: flex;
     gap: 32px;
-    margin-top: 12px;
+    margin-top: 8px;
   }
   .stat {
     display: flex;
@@ -194,18 +261,30 @@
     text-transform: uppercase;
     letter-spacing: 0.06em;
   }
+  .last-update {
+    font-size: 0.8rem;
+    margin: 10px 0 0;
+  }
   .bad {
     color: var(--bad);
   }
   .import-section {
-    margin-top: 20px;
-    padding-top: 16px;
+    margin-top: 14px;
+    padding-top: 12px;
     border-top: 1px solid var(--line-soft);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .update-hint {
+    font-size: 0.78rem;
   }
   .progress-area {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
+    width: 100%;
   }
   .progress-bar {
     height: 8px;
@@ -220,17 +299,18 @@
     transition: width 200ms ease;
   }
   .progress-text {
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     margin: 0;
   }
   .elapsed {
-    font-size: 0.78rem;
+    font-size: 0.75rem;
     margin: 0;
   }
   .result-summary {
-    margin-top: 12px;
+    width: 100%;
   }
   .result-summary p {
     margin: 0;
+    font-size: 0.88rem;
   }
 </style>

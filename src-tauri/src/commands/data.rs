@@ -13,6 +13,8 @@ pub struct DbStatus {
     pub pitches_count: i64,
     pub teams_count: i64,
     pub players_count: i64,
+    pub last_game_date: Option<String>,
+    pub pending_games: i64,
 }
 
 #[tauri::command]
@@ -25,6 +27,22 @@ pub fn get_db_status(state: State<'_, AppState>) -> Result<DbStatus, String> {
         })
         .unwrap_or(0)
     };
+
+    let last_game_date: Option<String> = conn
+        .query_row(
+            "SELECT MAX(game_date) FROM games WHERE data_fetched = 1",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap_or(None);
+
+    let pending_games: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM games WHERE data_fetched = 0 AND status = 'Final'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
 
     Ok(DbStatus {
         db_path: state.db_path.clone(),
@@ -39,6 +57,8 @@ pub fn get_db_status(state: State<'_, AppState>) -> Result<DbStatus, String> {
         pitches_count: count("pitches"),
         teams_count: count("teams"),
         players_count: count("players"),
+        last_game_date,
+        pending_games,
     })
 }
 
@@ -142,27 +162,54 @@ pub async fn import_season(
         let raw = match api::fetch_play_by_play(&client, *game_pk).await {
             Ok(r) => r,
             Err(e) => {
-                eprintln!(
-                    "[mlb-markov] Failed to fetch game {}: {}",
-                    game_pk, e
-                );
-                games_skipped += 1;
-                continue;
+                let msg = format!("Skipped game {} ({}): {}", game_pk, game_date, e);
+                eprintln!("[mlb-markov] {}", msg);
+                app_handle.emit("import-progress", ImportProgress {
+                    current: (i + 1) as i32, total, game_pk: *game_pk,
+                    message: msg,
+                }).ok();
+                tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+                match api::fetch_play_by_play(&client, *game_pk).await {
+                    Ok(r) => r,
+                    Err(e2) => {
+                        eprintln!("[mlb-markov] Retry failed for game {}: {}", game_pk, e2);
+                        games_skipped += 1;
+                        continue;
+                    }
+                }
             }
         };
 
         let parsed = api::parse_game(*game_pk, raw);
 
-        let (plays, pitches) = {
+        let insert_result = {
             let conn = state.db.lock().map_err(|e| e.to_string())?;
-            let result = api::insert_parsed_game(&conn, &parsed)
-                .map_err(|e| format!("Failed to insert game {}: {}", game_pk, e))?;
-            conn.execute(
-                "UPDATE games SET data_fetched = 1 WHERE game_pk = ?1",
-                [game_pk],
-            )
-            .map_err(|e| e.to_string())?;
-            result
+            match api::insert_parsed_game(&conn, &parsed) {
+                Ok(r) => {
+                    conn.execute(
+                        "UPDATE games SET data_fetched = 1 WHERE game_pk = ?1",
+                        [game_pk],
+                    ).map_err(|e| e.to_string())?;
+                    Ok(r)
+                }
+                Err(e) => {
+                    let msg = format!("Skipped game {} ({}): insert error: {}", game_pk, game_date, e);
+                    eprintln!("[mlb-markov] {}", msg);
+                    app_handle.emit("import-progress", ImportProgress {
+                        current: (i + 1) as i32, total, game_pk: *game_pk,
+                        message: msg.clone(),
+                    }).ok();
+                    Err(msg)
+                }
+            }
+        };
+
+        let (plays, pitches) = match insert_result {
+            Ok(r) => r,
+            Err(_) => {
+                games_skipped += 1;
+                continue;
+            }
         };
 
         total_plays += plays;

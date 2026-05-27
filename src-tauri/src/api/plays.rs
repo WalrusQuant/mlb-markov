@@ -106,8 +106,15 @@ struct ApiRunner {
 struct ApiMovement {
     start: Option<String>,
     end: Option<String>,
-    #[serde(default)]
+    #[serde(default, deserialize_with = "deserialize_null_bool")]
     is_out: bool,
+}
+
+fn deserialize_null_bool<'de, D>(deserializer: D) -> Result<bool, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    Option::<bool>::deserialize(deserializer).map(|opt| opt.unwrap_or(false))
 }
 
 #[derive(Debug, Default, Deserialize)]

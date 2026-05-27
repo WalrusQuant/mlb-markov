@@ -5,6 +5,8 @@ export type DbStatus = {
   pitchesCount: number;
   teamsCount: number;
   playersCount: number;
+  lastGameDate: string | null;
+  pendingGames: number;
 };
 
 export type ImportProgress = {
