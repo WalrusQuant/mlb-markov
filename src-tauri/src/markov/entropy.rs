@@ -32,7 +32,7 @@ pub fn compute_pitcher_profile(
     transitions: &PitchTransitionSet,
 ) -> Result<PitcherProfile> {
     // Overall entropy: flatten the matrix into a pitch distribution
-    let overall_entropy = matrix_entropy(&transitions.overall.matrix);
+    let overall_entropy = matrix_entropy(&transitions.overall.matrix, &transitions.overall.occurrences);
     let total_pitches: i64 = transitions
         .overall
         .occurrences
@@ -42,7 +42,7 @@ pub fn compute_pitcher_profile(
 
     let mut by_count: Vec<CountEntropy> = Vec::new();
     for (cs, mat) in &transitions.by_count {
-        let e = matrix_entropy(&mat.matrix);
+        let e = matrix_entropy(&mat.matrix, &mat.occurrences);
         let pitches: i64 = mat.occurrences.iter().flat_map(|row| row.iter()).sum();
         by_count.push(CountEntropy {
             count_state: cs.clone(),
@@ -65,22 +65,22 @@ pub fn compute_pitcher_profile(
 }
 
 /// Average row entropy weighted by row occurrence count
-fn matrix_entropy(matrix: &[Vec<f64>]) -> f64 {
-    let mut total_weight = 0.0;
+fn matrix_entropy(matrix: &[Vec<f64>], occurrences: &[Vec<i64>]) -> f64 {
+    let mut total_weight = 0i64;
     let mut weighted_entropy = 0.0;
 
-    for row in matrix {
-        let row_sum: f64 = row.iter().sum();
-        if row_sum <= 0.0 {
+    for (i, row) in matrix.iter().enumerate() {
+        let row_count: i64 = occurrences[i].iter().sum();
+        if row_count == 0 {
             continue;
         }
         let e = shannon_entropy(row);
-        weighted_entropy += row_sum * e;
-        total_weight += row_sum;
+        weighted_entropy += row_count as f64 * e;
+        total_weight += row_count;
     }
 
-    if total_weight > 0.0 {
-        weighted_entropy / total_weight
+    if total_weight > 0 {
+        weighted_entropy / total_weight as f64
     } else {
         0.0
     }

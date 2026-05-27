@@ -17,6 +17,7 @@
   let selectedTeam = $state<number | null>(null);
   let loading = $state(false);
   let error = $state<string | null>(null);
+  let requestSeq = 0;
 
   let selectedTeamName = $derived(
     teams.find((t) => t.teamId === selectedTeam)?.name ?? "",
@@ -43,33 +44,38 @@
   let hasTeam = $derived(selectedTeam !== null && teamBundle !== null);
 
   async function loadEdge() {
+    const seq = ++requestSeq;
     loading = true;
     error = null;
     try {
       if (!leagueBundle) {
         leagueBundle = await getOffenseTransitions(undefined, null);
       }
+      if (seq !== requestSeq) return;
       if (selectedTeam) {
         teamBundle = await getOffenseTransitions(undefined, selectedTeam);
       } else {
         teamBundle = null;
       }
     } catch (e) {
+      if (seq !== requestSeq) return;
       error = String(e);
     } finally {
-      loading = false;
+      if (seq === requestSeq) loading = false;
     }
   }
 
   async function loadMomentum() {
+    const seq = ++requestSeq;
     loading = true;
     error = null;
     try {
       momentumBundle = await getMomentumAnalysis(undefined, selectedTeam);
     } catch (e) {
+      if (seq !== requestSeq) return;
       error = String(e);
     } finally {
-      loading = false;
+      if (seq === requestSeq) loading = false;
     }
   }
 

@@ -187,17 +187,18 @@ export function renderHeatmap(
     }
 
     for (let o = 1; o <= 3; o++) {
-      const pos = o * 8 * cellH;
+      const yPos = o * 8 * cellH;
+      const xPos = o * 8 * cellW;
       g.append("line")
         .attr("x1", 0)
         .attr("x2", innerW)
-        .attr("y1", pos)
-        .attr("y2", pos)
+        .attr("y1", yPos)
+        .attr("y2", yPos)
         .attr("stroke", "var(--line)")
         .attr("stroke-width", 1);
       g.append("line")
-        .attr("x1", pos * (innerW / innerH))
-        .attr("x2", pos * (innerW / innerH))
+        .attr("x1", xPos)
+        .attr("x2", xPos)
         .attr("y1", 0)
         .attr("y2", innerH)
         .attr("stroke", "var(--line)")

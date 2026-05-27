@@ -184,14 +184,8 @@ pub async fn import_season(
 
         let insert_result = {
             let conn = state.db.lock().map_err(|e| e.to_string())?;
-            match api::insert_parsed_game(&conn, &parsed) {
-                Ok(r) => {
-                    conn.execute(
-                        "UPDATE games SET data_fetched = 1 WHERE game_pk = ?1",
-                        [game_pk],
-                    ).map_err(|e| e.to_string())?;
-                    Ok(r)
-                }
+            match api::insert_parsed_game(&conn, *game_pk, &parsed) {
+                Ok(r) => Ok(r),
                 Err(e) => {
                     let msg = format!("Skipped game {} ({}): insert error: {}", game_pk, game_date, e);
                     eprintln!("[mlb-markov] {}", msg);

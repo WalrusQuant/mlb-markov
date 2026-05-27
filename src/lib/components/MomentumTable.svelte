@@ -95,7 +95,7 @@
     width: 100%;
     font-size: 0.75rem;
   }
-  th, :global(td) {
+  th, td {
     padding: 2px 6px;
   }
   th {

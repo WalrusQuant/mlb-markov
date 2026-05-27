@@ -173,8 +173,8 @@ pub struct PlayRecord {
     pub bases_before: String,
     pub bases_after: String,
     pub runs_scored: i32,
-    pub batter_id: i64,
-    pub pitcher_id: i64,
+    pub batter_id: Option<i64>,
+    pub pitcher_id: Option<i64>,
 }
 
 pub struct PitchRecord {
@@ -269,7 +269,14 @@ pub fn parse_game(game_pk: i64, raw: PlayByPlayResponse) -> ParsedGame {
             .filter(|r| r.movement.is_out)
             .count() as i32;
         let outs_after = play.count.outs;
-        let outs_before = outs_after - outs_made;
+        let raw_outs_before = outs_after - outs_made;
+        if raw_outs_before < 0 {
+            eprintln!(
+                "[mlb-markov] Negative outs_before ({}) for game {} at_bat {}, clamping to 0",
+                raw_outs_before, game_pk, play.about.at_bat_index
+            );
+        }
+        let outs_before = raw_outs_before.max(0);
 
         // Record bases_before from tracked state
         let bases_before = encode_bases(&current_bases);
@@ -339,8 +346,8 @@ pub fn parse_game(game_pk: i64, raw: PlayByPlayResponse) -> ParsedGame {
             bases_before,
             bases_after,
             runs_scored,
-            batter_id,
-            pitcher_id,
+            batter_id: if batter_id == 0 { None } else { Some(batter_id) },
+            pitcher_id: if pitcher_id == 0 { None } else { Some(pitcher_id) },
         };
 
         result_plays.push((play_record, pitches));
@@ -356,7 +363,7 @@ pub fn parse_game(game_pk: i64, raw: PlayByPlayResponse) -> ParsedGame {
 // DB insertion
 // ---------------------------------------------------------------------------
 
-pub fn insert_parsed_game(conn: &Connection, parsed: &ParsedGame) -> Result<(i64, i64)> {
+pub fn insert_parsed_game(conn: &Connection, game_pk: i64, parsed: &ParsedGame) -> Result<(i64, i64)> {
     let tx = conn.unchecked_transaction()?;
     let mut plays_inserted = 0i64;
     let mut pitches_inserted = 0i64;
@@ -417,6 +424,11 @@ pub fn insert_parsed_game(conn: &Connection, parsed: &ParsedGame) -> Result<(i64
             pitches_inserted += 1;
         }
     }
+
+    tx.execute(
+        "UPDATE games SET data_fetched = 1 WHERE game_pk = ?1",
+        rusqlite::params![game_pk],
+    )?;
 
     tx.commit()?;
     Ok((plays_inserted, pitches_inserted))

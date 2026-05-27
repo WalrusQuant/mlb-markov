@@ -147,8 +147,10 @@ pub fn get_momentum_analysis(
         .map(|r| r.expected_runs).unwrap_or(0.0);
     let overall_delta = ((hot_start - cold_start) * 1000.0).round() / 1000.0;
 
-    let verdict = if overall_delta > 0.05 {
+    let verdict = if overall_delta > 0.05 && cold_start.abs() > 1e-9 {
         format!("Momentum is real — teams score {:.1}% more when runs have already scored", (overall_delta / cold_start * 100.0))
+    } else if overall_delta > 0.05 {
+        "Momentum is real — teams score more when runs have already scored".to_string()
     } else if overall_delta < -0.05 {
         format!("Momentum is a myth — teams actually score less after scoring")
     } else {

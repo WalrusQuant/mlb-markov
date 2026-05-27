@@ -86,7 +86,10 @@ fn invert_matrix(m: &[Vec<f64>]) -> Vec<Vec<f64>> {
 
         let pivot = aug[col][col];
         if pivot.abs() < 1e-12 {
-            // Near-singular; leave row as-is (shouldn't happen for valid Markov chains)
+            eprintln!("[mlb-markov] Near-singular matrix at col {}, zeroing row", col);
+            for j in 0..(2 * n) {
+                aug[col][j] = 0.0;
+            }
             continue;
         }
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onDestroy } from "svelte";
   import { searchPitchers, getPitchSequences } from "$lib/api";
   import type { PitcherSearchResult, PitchSequenceBundle, PitchMatrixData } from "$lib/types";
   import PitchMatrix from "$lib/components/PitchMatrix.svelte";
@@ -9,8 +10,9 @@
   let loading = $state(false);
   let error = $state<string | null>(null);
   let selectedCount = $state<string | null>(null);
-
+  let skipNextSearch = false;
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+  let searchWrap: HTMLElement;
 
   let allCounts = $derived.by(() => {
     if (!bundle) return [];
@@ -73,7 +75,26 @@
     }, 300);
   }
 
-  let skipNextSearch = false;
+  function onSearchKeydown(e: KeyboardEvent) {
+    if (e.key === "Escape") {
+      results = [];
+    }
+  }
+
+  function onClickOutside(e: MouseEvent) {
+    if (searchWrap && !searchWrap.contains(e.target as Node)) {
+      results = [];
+    }
+  }
+
+  $effect(() => {
+    document.addEventListener("click", onClickOutside);
+    return () => document.removeEventListener("click", onClickOutside);
+  });
+
+  onDestroy(() => {
+    if (debounceTimer) clearTimeout(debounceTimer);
+  });
 
   async function selectPitcher(pitcher: PitcherSearchResult) {
     skipNextSearch = true;
@@ -99,12 +120,13 @@
       <h1>Pitching: What's Coming Next?</h1>
       <p class="subtitle">Pick a pitcher and a count to see what they throw — and what follows each pitch type.</p>
     </div>
-    <div class="search-wrap">
+    <div class="search-wrap" bind:this={searchWrap}>
       <input
         type="text"
         placeholder="Search pitcher name..."
         bind:value={query}
         oninput={onInput}
+        onkeydown={onSearchKeydown}
       />
       {#if results.length > 0}
         <div class="dropdown">
