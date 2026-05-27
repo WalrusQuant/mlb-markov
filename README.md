@@ -1,36 +1,33 @@
 # MLB Markov
 
-A desktop app that applies Markov chain models to MLB play-by-play data. Two analysis views: **offense** (base-out state transitions and run expectancy) and **pitching** (pitch sequence predictability via Shannon entropy).
-
-Built with [Tauri v2](https://v2.tauri.app) (Rust backend + SvelteKit frontend). Data from the free [MLB Stats API](https://statsapi.mlb.com).
+A desktop app that applies Markov chain models to real MLB play-by-play data. Built with [Tauri v2](https://v2.tauri.app) (Rust + SvelteKit). Data from the free [MLB Stats API](https://statsapi.mlb.com).
 
 ## What It Does
 
-**Offense: At-Bat Transitions**
-- Models every plate appearance as a transition between 25 base-out states (24 active + 1 absorbing)
-- Computes the full transition probability matrix from a season of play-by-play data
-- Calculates expected runs from any state (RE24) via the fundamental matrix
-- Compare any team against league average with the heatmap visualization
+### Offense: What Happens Next?
+Every at-bat moves the game between base/out situations. This model tracks every transition and computes how many runs teams actually score from each situation.
 
-**Pitching: Sequence Predictability**
-- Builds a pitch-type Markov chain for any pitcher (what pitch follows what pitch)
-- Computes Shannon entropy as a predictability score — low entropy = predictable, high = unpredictable
-- Breaks down entropy by count to show how approach changes when ahead vs behind
+- **Team vs League Average** — select any team and see where they score more or fewer runs than average, sorted by biggest difference
+- **Momentum Analysis** — do teams score more from the same situation when runs have already scored in the inning? The data answers it
+- **Trace the chain** — hover any cell in the heatmap to see the transition probability and how expected runs change from one state to the next
 
-**Learning Tab**
-- Built-in educational content explaining Markov chains, the 25-state model, RE24 math, transition matrices, and entropy
-- Rendered formulas via KaTeX
-- Explains the data pipeline so you understand what you're downloading
+### Pitching: What's Coming Next?
+Look up any pitcher and see what they throw at every count.
+
+- **Count-specific sequences** — select a count (0-2, 3-1, etc.) to see the pitch-to-pitch transition matrix for that count. After a fastball at 0-2, what comes next?
+- **Predictability score** — measures how easy it is to guess the next pitch. Updates per count so you can see where a pitcher becomes predictable
+- **Full pitch type coverage** — tracks every pitch type in the pitcher's arsenal across the entire season
+
+### Learning Tab
+Built-in educational content explaining Markov chains, the 25 base-out states, run expectancy math, transition matrices, Shannon entropy, and the data pipeline. Formulas rendered with KaTeX.
 
 ## Data Pipeline
 
-When you click **"Bootstrap Current Season"**, the app fetches play-by-play data for every completed game in the current MLB season from the Stats API. This includes every plate appearance and every individual pitch.
+On first launch, click **"Bootstrap Current Season"** to download play-by-play data for every completed game this season.
 
-**Initial load:** ~800-1,200 games mid-season, each requiring an API call. Takes about 3-4 minutes with the 250ms rate limit. This is a one-time cost.
-
-**Incremental updates:** After the initial bootstrap, only new games (completed since your last import) are fetched. During the season, that's ~12-15 games per day — a few seconds.
-
-**Scale:** A full season is roughly 150,000+ plays and 700,000+ pitches, stored locally in SQLite.
+- **Initial load:** 800+ games, 60,000+ plays, 200,000+ pitches. Takes about 3-4 minutes.
+- **Updates:** After the first load, click "Update Data" to pull only new games since your last import. Typically 12-15 games per day — a few seconds.
+- **All local:** Everything is stored in a SQLite database on your machine. No account, no cloud, no API key.
 
 ## Development
 
@@ -59,7 +56,7 @@ The production binary lands in `src-tauri/target/release/bundle/`.
 | Desktop shell | Tauri v2 |
 | Backend | Rust (reqwest, rusqlite, serde, tokio) |
 | Frontend | SvelteKit (adapter-static, Svelte 5) |
-| Charts | D3.js (SVG heatmaps) |
+| Charts | D3.js (SVG heatmaps with interactive tooltips) |
 | Math rendering | KaTeX |
 | Database | SQLite (WAL mode, bundled via rusqlite) |
 | Data source | MLB Stats API (free, no key) |
@@ -71,19 +68,26 @@ src-tauri/src/
 ├── api/           MLB Stats API client (schedule, play-by-play parser)
 ├── commands/      Tauri IPC commands (data, offense, pitching)
 ├── db/            SQLite setup, schema, migrations
-├── markov/        Core math (states, transitions, expected runs, entropy)
+├── markov/        Core math (states, transitions, expected runs, momentum, entropy)
 └── lib.rs         AppState, setup, season detection
 
 src/
 ├── lib/
-│   ├── charts/    D3.js heatmap renderer
-│   ├── components/  Svelte 5 components (heatmap, tables, pitcher card, etc.)
+│   ├── charts/    D3.js heatmap renderer with tooltips
+│   ├── components/  Svelte 5 components
+│   │   ├── StateHeatmap.svelte       25-state offense heatmap
+│   │   ├── RunComparisonTable.svelte  Team vs league comparison
+│   │   ├── MomentumTable.svelte       Cold vs hot innings
+│   │   ├── InsightCallouts.svelte     Highlight biggest differences
+│   │   ├── PitchMatrix.svelte         Pitch-type transition heatmap
+│   │   ├── ExpectedRunsTable.svelte   RE24 table
+│   │   └── TeamSelector.svelte        Team dropdown
 │   ├── api.ts     Tauri invoke wrappers
 │   └── types.ts   TypeScript types matching Rust serialization
 └── routes/
-    ├── +page.svelte          Home (DB status, import)
-    ├── offense/+page.svelte  Transition heatmap + RE24
-    ├── pitching/+page.svelte Pitcher search + entropy
+    ├── +page.svelte          Home (data status, import, use cases)
+    ├── offense/+page.svelte  Team edge + momentum analysis
+    ├── pitching/+page.svelte Count-specific pitch sequencing
     └── learning/+page.svelte Educational content
 ```
 

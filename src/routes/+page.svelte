@@ -107,53 +107,53 @@
   </a>
 </div>
 
-<div class="card">
-  <h3>Data</h3>
+<div class="grid">
+  <div class="card">
+    <h3>Data</h3>
 
-  {#if error}
-    <p class="bad">{error}</p>
-  {/if}
-
-  {#if isEmpty && !importing && !result}
-    <div class="empty-state">
-      <p><strong>No data loaded yet.</strong> Click the button below to download play-by-play data for every completed game this season from the MLB Stats API.</p>
-      <p class="muted detail">
-        The initial load fetches every plate appearance and every individual pitch — typically
-        800+ games, 60,000+ plays, and 200,000+ pitches. This takes about <strong>3-4 minutes</strong> on
-        the first run. After that, updates only pull new games (a few seconds).
-      </p>
-    </div>
-  {/if}
-
-  {#if hasData}
-    <div class="stats-row">
-      <div class="stat">
-        <span class="stat-value mono">{fmt(status!.gamesCount)}</span>
-        <span class="stat-label muted">Games</span>
-      </div>
-      <div class="stat">
-        <span class="stat-value mono">{fmt(status!.playsCount)}</span>
-        <span class="stat-label muted">Plays</span>
-      </div>
-      <div class="stat">
-        <span class="stat-value mono">{fmt(status!.pitchesCount)}</span>
-        <span class="stat-label muted">Pitches</span>
-      </div>
-      <div class="stat">
-        <span class="stat-value mono">{fmt(status!.playersCount)}</span>
-        <span class="stat-label muted">Players</span>
-      </div>
-    </div>
-
-    {#if status!.lastGameDate}
-      <p class="last-update muted">
-        Data through <strong>{status!.lastGameDate}</strong>
-        {#if status!.pendingGames > 0}
-          · at least <strong>{status!.pendingGames}</strong> new games available
-        {/if}
-      </p>
+    {#if error}
+      <p class="bad">{error}</p>
     {/if}
-  {/if}
+
+    {#if isEmpty && !importing && !result}
+      <div class="empty-state">
+        <p><strong>No data loaded yet.</strong> Click below to download play-by-play data for every completed game this season.</p>
+        <p class="muted detail">
+          First run fetches 800+ games, 60,000+ plays, 200,000+ pitches. Takes about <strong>3-4 minutes</strong>.
+          After that, updates only pull new games (a few seconds).
+        </p>
+      </div>
+    {/if}
+
+    {#if hasData}
+      <div class="stats-row">
+        <div class="stat">
+          <span class="stat-value mono">{fmt(status!.gamesCount)}</span>
+          <span class="stat-label muted">Games</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value mono">{fmt(status!.playsCount)}</span>
+          <span class="stat-label muted">Plays</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value mono">{fmt(status!.pitchesCount)}</span>
+          <span class="stat-label muted">Pitches</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value mono">{fmt(status!.playersCount)}</span>
+          <span class="stat-label muted">Players</span>
+        </div>
+      </div>
+
+      {#if status!.lastGameDate}
+        <p class="last-update muted">
+          Data through <strong>{status!.lastGameDate}</strong>
+          {#if status!.pendingGames > 0}
+            · at least <strong>{status!.pendingGames}</strong> new games available
+          {/if}
+        </p>
+      {/if}
+    {/if}
 
   <div class="import-section">
     {#if importing}
@@ -198,6 +198,17 @@
       </div>
     {/if}
   </div>
+  </div>
+
+  <div class="card use-card">
+    <h3>What Can You Do With This?</h3>
+    <ul>
+      <li><strong>Trace an inning:</strong> Hover the offense heatmap to follow the chain — see the probability of each transition and how expected runs change with every at-bat.</li>
+      <li><strong>Compare teams:</strong> Select a team and see where they score more or fewer runs than league average from each base/out situation.</li>
+      <li><strong>Test momentum:</strong> Does scoring early in an inning lead to more scoring? The momentum tab splits cold vs hot innings to find out.</li>
+      <li><strong>Scout a pitcher:</strong> Look up any pitcher, pick a count, and see what they throw after each pitch type. Find where they become predictable.</li>
+    </ul>
+  </div>
 </div>
 
 <style>
@@ -233,6 +244,16 @@
     font-size: 0.84rem;
     color: var(--accent);
     font-weight: 600;
+  }
+  .use-card ul {
+    margin: 8px 0 0;
+    padding-left: 1.2em;
+    color: var(--ink-soft);
+  }
+  .use-card li {
+    font-size: 0.84rem;
+    line-height: 1.45;
+    margin-bottom: 8px;
   }
   .empty-state p {
     margin: 0 0 8px;

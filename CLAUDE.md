@@ -1,7 +1,7 @@
 # CLAUDE.md
 
 ## Project Overview
-MLB Markov — Tauri v2 desktop app applying Markov chain models to MLB play-by-play data. Two analysis views (offense state transitions, pitching entropy) plus a learning/educational tab.
+MLB Markov — Tauri v2 desktop app applying Markov chain models to MLB play-by-play data. Offense view (base-out state transitions, team vs league comparison, momentum analysis), pitching view (count-specific pitch sequencing and predictability), and a learning/educational tab.
 
 ## Tech Stack
 - **Backend:** Rust, Tauri v2, rusqlite (bundled, WAL mode), reqwest (rustls-tls), serde, tokio, chrono, anyhow, thiserror 2
@@ -18,7 +18,7 @@ MLB Markov — Tauri v2 desktop app applying Markov chain models to MLB play-by-
 - Season determined server-side via `default_season()` using `Utc::now()` — all command season params are `Option<i32>`
 
 ### Svelte 5 Reactivity
-- Use `$state`, `$derived`, `$effect`, `$props()` — NOT stores or Svelte 4 syntax
+- Use `$state`, `$derived`, `$derived.by()`, `$effect`, `$props()` — NOT stores or Svelte 4 syntax
 - Event handling: callback props pattern (`onchange?: () => void` in `$props()`), NOT `on:change` or `createEventDispatcher`
 - Layout uses `{@render children?.()}`
 
@@ -26,6 +26,12 @@ MLB Markov — Tauri v2 desktop app applying Markov chain models to MLB play-by-
 - CSS variables design system in `src/app.css` — light/dark mode via `prefers-color-scheme`
 - Use `.card`, `.badge`, `.muted`, `.shell`, `.formula` classes
 - No Tailwind
+
+### Viewport Layout
+- Offense and Pitching pages are viewport-locked: `overflow: hidden`, `height: calc(100vh - Xpx)`
+- Home and Learning pages scroll normally via `overflow: auto` on `.main`
+- `overscroll-behavior: none` on html/body to prevent macOS elastic bounce
+- Tauri window: 1200x800 default. All data pages must fit with zero scrolling.
 
 ### Database
 - rusqlite directly (NOT tauri-plugin-sql)
@@ -38,11 +44,19 @@ MLB Markov — Tauri v2 desktop app applying Markov chain models to MLB play-by-
 - Base state tracked as `[bool; 3]` across plays within half-inning (runners array only includes runners who MOVED)
 - `outs_before = count.outs - number_of_runners_with_isOut_true`
 - Liberal `#[serde(default)]` on all API DTOs
+- `isOut` field can be `null` in API — uses custom `deserialize_null_bool` to handle
 
 ### Markov Engine
 - 25 states: 24 active + 1 absorbing ("3_---") in `src-tauri/src/markov/states.rs`
 - RE24 via fundamental matrix N = (I-Q)^-1, Gaussian elimination with partial pivoting
 - Shannon entropy: `-Σ(p·ln(p))`, weighted average for matrix entropy
+- Momentum analysis: SQL window function splits plays into cold (0 runs scored in inning) vs hot (1+ runs scored), computes separate transition matrices
+
+### D3 Heatmap
+- `src/lib/charts/heatmap.ts` renders SVG with tooltip div (not SVG `<title>`)
+- Tooltip shows friendly state names, probability, and expected runs at both states
+- Tooltip flips left near right edge to prevent clipping
+- Label sizes scale with matrix size: 14px for small (pitch types), 9px for medium, 7px for 25-state offense
 
 ## Commands
 ```bash
@@ -65,13 +79,15 @@ src/
   lib/api.ts          All invoke() wrappers
   lib/types.ts        TypeScript types matching Rust camelCase serialization
   lib/charts/         D3.js heatmap renderer
-  lib/components/     Svelte 5 components
+  lib/components/     Svelte 5 components (heatmap, tables, comparison, momentum, pitcher)
   routes/             Home, offense, pitching, learning
 ```
 
 ## Common Pitfalls
 - rusqlite `Mutex<Connection>` must be unlocked before awaiting — scope lock guards in blocks
 - MLB API `runners` array only includes runners who moved — must track base state sequentially
+- MLB API `isOut` can be `null` — use custom deserializer, not `#[serde(default)]` alone
 - Svelte 5 uses callback props, not `on:event` directives
-- KaTeX CSS loaded via CDN link in `Tex.svelte` head
+- KaTeX CSS loaded via CDN link in `app.html`
 - Delete ALL `mlbmarkov.db*` files (including .db-shm, .db-wal) when resetting the database
+- Offense/Pitching pages must fit 1200x800 viewport with zero scrolling — use flex layouts with `overflow: hidden`
