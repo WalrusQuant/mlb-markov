@@ -20,3 +20,23 @@ export type ImportResult = {
   pitchesInserted: number;
   gamesSkipped: number;
 };
+
+export type StateExpectedRuns = {
+  state: string;
+  label: string;
+  expectedRuns: number;
+};
+
+export type OffenseBundle = {
+  season: number;
+  teamId: number | null;
+  states: string[];
+  matrix: number[][];
+  expectedRuns: StateExpectedRuns[];
+};
+
+export type TeamOption = {
+  teamId: number;
+  name: string;
+  abbreviation: string;
+};

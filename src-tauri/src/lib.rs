@@ -37,6 +37,8 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::data::get_db_status,
             commands::data::import_season,
+            commands::offense::get_offense_transitions,
+            commands::offense::get_teams,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -1,6 +1,12 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import type { DbStatus, ImportProgress, ImportResult } from "./types";
+import type {
+  DbStatus,
+  ImportProgress,
+  ImportResult,
+  OffenseBundle,
+  TeamOption,
+} from "./types";
 
 export async function getDbStatus(): Promise<DbStatus> {
   return await invoke<DbStatus>("get_db_status");
@@ -16,4 +22,18 @@ export async function onImportProgress(
   return await listen<ImportProgress>("import-progress", (event) => {
     callback(event.payload);
   });
+}
+
+export async function getOffenseTransitions(
+  season: number,
+  teamId?: number | null,
+): Promise<OffenseBundle> {
+  return await invoke<OffenseBundle>("get_offense_transitions", {
+    season,
+    teamId: teamId ?? null,
+  });
+}
+
+export async function getTeams(): Promise<TeamOption[]> {
+  return await invoke<TeamOption[]>("get_teams");
 }
