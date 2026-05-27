@@ -13,12 +13,15 @@
   },
   "license": "MIT",
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild"]
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   },
   "dependencies": {
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-opener": "^2",
-    "d3": "^7"
+    "d3": "^7",
+    "katex": "^0.17.0"
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "^3.0.6",

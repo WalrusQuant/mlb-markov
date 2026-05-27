@@ -8,6 +8,7 @@
     { href: "/", label: "Home" },
     { href: "/offense", label: "Offense" },
     { href: "/pitching", label: "Pitching" },
+    { href: "/learning", label: "Learning" },
   ];
 
   function isActive(href: string): boolean {
