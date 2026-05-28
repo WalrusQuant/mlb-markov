@@ -120,3 +120,69 @@ fn store_profile(
     tx.commit()?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use approx::assert_abs_diff_eq;
+
+    #[test]
+    fn test_shannon_entropy_uniform_2() {
+        let result = shannon_entropy(&[0.5, 0.5]);
+        assert_abs_diff_eq!(result, std::f64::consts::LN_2, epsilon = 1e-10);
+    }
+
+    #[test]
+    fn test_shannon_entropy_uniform_4() {
+        let result = shannon_entropy(&[0.25, 0.25, 0.25, 0.25]);
+        assert_abs_diff_eq!(result, 4_f64.ln(), epsilon = 1e-10);
+    }
+
+    #[test]
+    fn test_shannon_entropy_certain() {
+        let result = shannon_entropy(&[1.0, 0.0, 0.0]);
+        assert_abs_diff_eq!(result, 0.0, epsilon = 1e-10);
+    }
+
+    #[test]
+    fn test_shannon_entropy_empty() {
+        let result = shannon_entropy(&[]);
+        assert_abs_diff_eq!(result, 0.0, epsilon = 1e-10);
+    }
+
+    #[test]
+    fn test_shannon_entropy_skewed() {
+        let result = shannon_entropy(&[0.9, 0.1]);
+        let expected = -(0.9_f64 * 0.9_f64.ln() + 0.1_f64 * 0.1_f64.ln());
+        assert_abs_diff_eq!(result, expected, epsilon = 1e-10);
+    }
+
+    #[test]
+    fn test_shannon_entropy_zeros_filtered() {
+        let result = shannon_entropy(&[0.5, 0.0, 0.0, 0.5]);
+        assert_abs_diff_eq!(result, std::f64::consts::LN_2, epsilon = 1e-10);
+    }
+
+    #[test]
+    fn test_matrix_entropy_uniform_rows() {
+        // Both rows are [0.5, 0.5] — each has entropy ln(2)
+        // Row 0 weight: 10+10 = 20, Row 1 weight: 20+20 = 40
+        // Weighted average: (20*ln(2) + 40*ln(2)) / 60 = ln(2)
+        let matrix = vec![vec![0.5, 0.5], vec![0.5, 0.5]];
+        let occurrences = vec![vec![10i64, 10], vec![20, 20]];
+        let result = matrix_entropy(&matrix, &occurrences);
+        assert_abs_diff_eq!(result, std::f64::consts::LN_2, epsilon = 1e-10);
+    }
+
+    #[test]
+    fn test_matrix_entropy_mixed_rows() {
+        // Row 0: [1.0, 0.0] — entropy 0, weight 30
+        // Row 1: [0.5, 0.5] — entropy ln(2), weight 20
+        // Weighted average: (30*0 + 20*ln(2)) / 50 = 20*ln(2)/50
+        let matrix = vec![vec![1.0, 0.0], vec![0.5, 0.5]];
+        let occurrences = vec![vec![30i64, 0], vec![10, 10]];
+        let result = matrix_entropy(&matrix, &occurrences);
+        let expected = 20.0 * std::f64::consts::LN_2 / 50.0;
+        assert_abs_diff_eq!(result, expected, epsilon = 1e-10);
+    }
+}

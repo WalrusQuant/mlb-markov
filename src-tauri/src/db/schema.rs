@@ -116,3 +116,42 @@ pub fn create_indexes(conn: &Connection) -> Result<(), rusqlite::Error> {
     )?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rusqlite::Connection;
+
+    #[test]
+    fn test_create_tables_and_indexes() {
+        let conn = Connection::open_in_memory().expect("open in-memory db");
+        create_tables(&conn).expect("create_tables should succeed");
+        create_indexes(&conn).expect("create_indexes should succeed");
+
+        let table_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("query table count");
+        assert!(
+            table_count >= 7,
+            "expected at least 7 tables, found {}",
+            table_count
+        );
+
+        let index_count: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='index'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("query index count");
+        assert!(
+            index_count >= 8,
+            "expected at least 8 indexes, found {}",
+            index_count
+        );
+    }
+}

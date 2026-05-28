@@ -178,3 +178,200 @@ fn store_pitch_transitions(
     tx.commit()?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+    use approx::assert_abs_diff_eq;
+
+    fn test_db() -> rusqlite::Connection {
+        let conn = rusqlite::Connection::open_in_memory().unwrap();
+        crate::db::schema::create_tables(&conn).unwrap();
+        crate::db::schema::create_indexes(&conn).unwrap();
+        conn
+    }
+
+    // -----------------------------------------------------------------------
+    // build_matrix tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_build_matrix_simple() {
+        // BTreeSet ordering: CH < FF < SL → indices 0, 1, 2
+        let types = vec!["CH".to_string(), "FF".to_string(), "SL".to_string()];
+        let mut counts: HashMap<(String, String), i64> = HashMap::new();
+        counts.insert(("FF".to_string(), "SL".to_string()), 3);
+        counts.insert(("FF".to_string(), "CH".to_string()), 7);
+        counts.insert(("SL".to_string(), "FF".to_string()), 5);
+
+        let m = build_matrix(&types, &counts);
+
+        // Row CH (idx 0): no data → all zeros
+        assert_abs_diff_eq!(m.matrix[0][0], 0.0, epsilon = 1e-10);
+        assert_abs_diff_eq!(m.matrix[0][1], 0.0, epsilon = 1e-10);
+        assert_abs_diff_eq!(m.matrix[0][2], 0.0, epsilon = 1e-10);
+        assert_eq!(m.occurrences[0], vec![0i64, 0, 0]);
+
+        // Row FF (idx 1): CH=7, FF=0, SL=3  →  0.7, 0.0, 0.3
+        assert_abs_diff_eq!(m.matrix[1][0], 0.7, epsilon = 1e-10);
+        assert_abs_diff_eq!(m.matrix[1][1], 0.0, epsilon = 1e-10);
+        assert_abs_diff_eq!(m.matrix[1][2], 0.3, epsilon = 1e-10);
+        assert_eq!(m.occurrences[1], vec![7i64, 0, 3]);
+
+        // Row SL (idx 2): SL→FF=5, others=0  →  0.0, 1.0, 0.0  (FF is at col 1)
+        assert_abs_diff_eq!(m.matrix[2][0], 0.0, epsilon = 1e-10);
+        assert_abs_diff_eq!(m.matrix[2][1], 1.0, epsilon = 1e-10);
+        assert_abs_diff_eq!(m.matrix[2][2], 0.0, epsilon = 1e-10);
+        assert_eq!(m.occurrences[2], vec![0i64, 5, 0]);
+    }
+
+    #[test]
+    fn test_build_matrix_row_stochastic() {
+        let types = vec!["CH".to_string(), "FF".to_string(), "SL".to_string()];
+        let mut counts: HashMap<(String, String), i64> = HashMap::new();
+        counts.insert(("FF".to_string(), "SL".to_string()), 3);
+        counts.insert(("FF".to_string(), "CH".to_string()), 7);
+        counts.insert(("SL".to_string(), "FF".to_string()), 5);
+
+        let m = build_matrix(&types, &counts);
+
+        for (i, row) in m.matrix.iter().enumerate() {
+            let row_sum: f64 = row.iter().sum();
+            let occ_sum: i64 = m.occurrences[i].iter().sum();
+            if occ_sum > 0 {
+                assert_abs_diff_eq!(row_sum, 1.0, epsilon = 1e-10);
+            } else {
+                assert_abs_diff_eq!(row_sum, 0.0, epsilon = 1e-10);
+            }
+        }
+    }
+
+    #[test]
+    fn test_build_matrix_empty() {
+        let types = vec!["FF".to_string(), "SL".to_string()];
+        let counts: HashMap<(String, String), i64> = HashMap::new();
+
+        let m = build_matrix(&types, &counts);
+
+        assert_eq!(m.matrix, vec![vec![0.0f64, 0.0], vec![0.0f64, 0.0]]);
+        assert_eq!(m.occurrences, vec![vec![0i64, 0], vec![0i64, 0]]);
+    }
+
+    // -----------------------------------------------------------------------
+    // compute_pitch_transitions tests
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_compute_pitch_transitions_empty_db() {
+        let conn = test_db();
+        let result = compute_pitch_transitions(&conn, 99999, 2024);
+        let set = result.expect("should return Ok for missing pitcher");
+        assert!(
+            set.pitch_types.is_empty(),
+            "expected no pitch types for an unknown pitcher"
+        );
+    }
+
+    #[test]
+    fn test_compute_pitch_transitions_with_data() {
+        let conn = test_db();
+
+        // Team (required by FK on players)
+        conn.execute(
+            "INSERT INTO teams (team_id, name, abbreviation) VALUES (1, 'Test Team', 'TST')",
+            [],
+        )
+        .unwrap();
+
+        // Pitcher
+        conn.execute(
+            "INSERT INTO players (player_id, full_name, primary_position, team_id) \
+             VALUES (100, 'Test Pitcher', 'P', 1)",
+            [],
+        )
+        .unwrap();
+
+        // Game on 2024-06-01
+        conn.execute(
+            "INSERT INTO games (game_pk, game_date, home_team_id, away_team_id, status) \
+             VALUES (1, '2024-06-01', 1, 1, 'Final')",
+            [],
+        )
+        .unwrap();
+
+        // Play for pitcher 100
+        conn.execute(
+            "INSERT INTO plays \
+             (id, game_pk, inning, half, event, outs_before, outs_after, \
+              bases_before, bases_after, runs_scored, batter_id, pitcher_id) \
+             VALUES (1, 1, 1, 'top', 'Strikeout', 0, 1, '---', '---', 0, NULL, 100)",
+            [],
+        )
+        .unwrap();
+
+        // Pitches: FF(1) → SL(2) → FF(3)
+        // Transitions: FF→SL (pitch 1→2), SL→FF (pitch 2→3)
+        conn.execute(
+            "INSERT INTO pitches \
+             (id, play_id, pitch_number, pitch_type, count_balls, count_strikes) \
+             VALUES (1, 1, 1, 'FF', 0, 0)",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO pitches \
+             (id, play_id, pitch_number, pitch_type, count_balls, count_strikes) \
+             VALUES (2, 1, 2, 'SL', 0, 1)",
+            [],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO pitches \
+             (id, play_id, pitch_number, pitch_type, count_balls, count_strikes) \
+             VALUES (3, 1, 3, 'FF', 0, 2)",
+            [],
+        )
+        .unwrap();
+
+        let set = compute_pitch_transitions(&conn, 100, 2024)
+            .expect("compute should succeed");
+
+        // Both pitch types must be present
+        assert!(set.pitch_types.contains(&"FF".to_string()), "expected FF in pitch_types");
+        assert!(set.pitch_types.contains(&"SL".to_string()), "expected SL in pitch_types");
+
+        // Locate FF and SL indices in the sorted type list
+        let ff_idx = set.pitch_types.iter().position(|t| t == "FF").unwrap();
+        let sl_idx = set.pitch_types.iter().position(|t| t == "SL").unwrap();
+
+        // Overall matrix: FF→SL = 1 occurrence, SL→FF = 1 occurrence
+        assert_eq!(
+            set.overall.occurrences[ff_idx][sl_idx], 1,
+            "FF→SL occurrence should be 1"
+        );
+        assert_eq!(
+            set.overall.occurrences[sl_idx][ff_idx], 1,
+            "SL→FF occurrence should be 1"
+        );
+
+        // Row probabilities for FF (only one target: SL → 1.0)
+        assert_abs_diff_eq!(
+            set.overall.matrix[ff_idx][sl_idx],
+            1.0,
+            epsilon = 1e-10
+        );
+        // Row probabilities for SL (only one target: FF → 1.0)
+        assert_abs_diff_eq!(
+            set.overall.matrix[sl_idx][ff_idx],
+            1.0,
+            epsilon = 1e-10
+        );
+
+        // by_count must be populated (two transitions → at least one count state)
+        assert!(
+            !set.by_count.is_empty(),
+            "expected at least one count-state bucket"
+        );
+    }
+}

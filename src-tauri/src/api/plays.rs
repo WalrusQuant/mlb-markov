@@ -455,3 +455,411 @@ fn base_index(base: &str) -> Option<usize> {
         _ => None,
     }
 }
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json;
+
+    // -----------------------------------------------------------------------
+    // Helper: encode_bases
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_encode_bases_empty() {
+        assert_eq!(encode_bases(&[false, false, false]), "000");
+    }
+
+    #[test]
+    fn test_encode_bases_full() {
+        assert_eq!(encode_bases(&[true, true, true]), "111");
+    }
+
+    #[test]
+    fn test_encode_bases_mixed() {
+        assert_eq!(encode_bases(&[true, false, true]), "101");
+    }
+
+    // -----------------------------------------------------------------------
+    // Helper: base_index
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn test_base_index_valid() {
+        assert_eq!(base_index("1B"), Some(0));
+        assert_eq!(base_index("2B"), Some(1));
+        assert_eq!(base_index("3B"), Some(2));
+    }
+
+    #[test]
+    fn test_base_index_invalid() {
+        assert_eq!(base_index("score"), None);
+        assert_eq!(base_index(""), None);
+        assert_eq!(base_index("home"), None);
+    }
+
+    // -----------------------------------------------------------------------
+    // parse_game via JSON deserialization
+    // -----------------------------------------------------------------------
+
+    /// Deserialize a JSON string into PlayByPlayResponse, panicking on failure.
+    fn parse_json(json: &str) -> PlayByPlayResponse {
+        serde_json::from_str(json).expect("test JSON must deserialize cleanly")
+    }
+
+    #[test]
+    fn test_parse_game_strikeout() {
+        let raw = parse_json(r#"{
+            "allPlays": [{
+                "about": {
+                    "atBatIndex": 0,
+                    "halfInning": "top",
+                    "inning": 1,
+                    "isComplete": true
+                },
+                "result": { "event": "Strikeout", "eventType": "strikeout" },
+                "matchup": {
+                    "batter":    { "id": 1, "fullName": "Batter" },
+                    "batSide":   { "code": "R" },
+                    "pitcher":   { "id": 2, "fullName": "Pitcher" },
+                    "pitchHand": { "code": "R" }
+                },
+                "count": { "balls": 1, "strikes": 3, "outs": 1 },
+                "runners": [{
+                    "movement": { "start": null, "end": null, "isOut": true },
+                    "details":  { "runner": { "id": 1, "fullName": "Batter" } }
+                }],
+                "playEvents": []
+            }]
+        }"#);
+
+        let game = parse_game(1, raw);
+        assert_eq!(game.plays.len(), 1);
+
+        let (play, pitches) = &game.plays[0];
+        assert_eq!(play.outs_before, 0);
+        assert_eq!(play.outs_after, 1);
+        assert_eq!(play.bases_before, "000");
+        assert_eq!(play.bases_after, "000");
+        assert_eq!(play.runs_scored, 0);
+        assert!(pitches.is_empty());
+    }
+
+    #[test]
+    fn test_parse_game_single_runner_scores() {
+        // Play 1: Double — batter moves to 2B. Sets current_bases to [false, true, false].
+        // Play 2: Single — batter moves to 1B, runner from 2B scores.
+        //   Expected for play 2: bases_before="010", bases_after="100", runs_scored=1.
+        let raw = parse_json(r#"{
+            "allPlays": [
+                {
+                    "about": {
+                        "atBatIndex": 0,
+                        "halfInning": "top",
+                        "inning": 1,
+                        "isComplete": true
+                    },
+                    "result": { "event": "Double", "eventType": "double" },
+                    "matchup": {
+                        "batter":    { "id": 10, "fullName": "Batter A" },
+                        "batSide":   { "code": "R" },
+                        "pitcher":   { "id": 20, "fullName": "Pitcher A" },
+                        "pitchHand": { "code": "R" }
+                    },
+                    "count": { "balls": 0, "strikes": 0, "outs": 0 },
+                    "runners": [{
+                        "movement": { "start": null, "end": "2B", "isOut": false },
+                        "details":  { "runner": { "id": 10, "fullName": "Batter A" } }
+                    }],
+                    "playEvents": []
+                },
+                {
+                    "about": {
+                        "atBatIndex": 1,
+                        "halfInning": "top",
+                        "inning": 1,
+                        "isComplete": true
+                    },
+                    "result": { "event": "Single", "eventType": "single" },
+                    "matchup": {
+                        "batter":    { "id": 11, "fullName": "Batter B" },
+                        "batSide":   { "code": "L" },
+                        "pitcher":   { "id": 20, "fullName": "Pitcher A" },
+                        "pitchHand": { "code": "R" }
+                    },
+                    "count": { "balls": 0, "strikes": 0, "outs": 0 },
+                    "runners": [
+                        {
+                            "movement": { "start": null, "end": "1B", "isOut": false },
+                            "details":  { "runner": { "id": 11, "fullName": "Batter B" } }
+                        },
+                        {
+                            "movement": { "start": "2B", "end": "score", "isOut": false },
+                            "details":  { "runner": { "id": 10, "fullName": "Batter A" } }
+                        }
+                    ],
+                    "playEvents": []
+                }
+            ]
+        }"#);
+
+        let game = parse_game(1, raw);
+        assert_eq!(game.plays.len(), 2);
+
+        let (play2, _) = &game.plays[1];
+        assert_eq!(play2.bases_before, "010");
+        assert_eq!(play2.bases_after, "100");
+        assert_eq!(play2.runs_scored, 1);
+    }
+
+    #[test]
+    fn test_parse_game_half_inning_reset() {
+        // Play 1: top of 1st — single, batter reaches 1B → bases become "100".
+        // Play 2: bottom of 1st — bases_before must be "000" (reset on half-inning change).
+        let raw = parse_json(r#"{
+            "allPlays": [
+                {
+                    "about": {
+                        "atBatIndex": 0,
+                        "halfInning": "top",
+                        "inning": 1,
+                        "isComplete": true
+                    },
+                    "result": { "event": "Single", "eventType": "single" },
+                    "matchup": {
+                        "batter":    { "id": 1, "fullName": "Batter" },
+                        "batSide":   { "code": "R" },
+                        "pitcher":   { "id": 2, "fullName": "Pitcher" },
+                        "pitchHand": { "code": "R" }
+                    },
+                    "count": { "balls": 0, "strikes": 0, "outs": 0 },
+                    "runners": [{
+                        "movement": { "start": null, "end": "1B", "isOut": false },
+                        "details":  { "runner": { "id": 1, "fullName": "Batter" } }
+                    }],
+                    "playEvents": []
+                },
+                {
+                    "about": {
+                        "atBatIndex": 1,
+                        "halfInning": "bottom",
+                        "inning": 1,
+                        "isComplete": true
+                    },
+                    "result": { "event": "Strikeout", "eventType": "strikeout" },
+                    "matchup": {
+                        "batter":    { "id": 3, "fullName": "Batter 2" },
+                        "batSide":   { "code": "R" },
+                        "pitcher":   { "id": 4, "fullName": "Pitcher 2" },
+                        "pitchHand": { "code": "R" }
+                    },
+                    "count": { "balls": 0, "strikes": 3, "outs": 1 },
+                    "runners": [{
+                        "movement": { "start": null, "end": null, "isOut": true },
+                        "details":  { "runner": { "id": 3, "fullName": "Batter 2" } }
+                    }],
+                    "playEvents": []
+                }
+            ]
+        }"#);
+
+        let game = parse_game(1, raw);
+        assert_eq!(game.plays.len(), 2);
+
+        let (play1, _) = &game.plays[0];
+        assert_eq!(play1.bases_after, "100");
+
+        let (play2, _) = &game.plays[1];
+        assert_eq!(play2.bases_before, "000");
+    }
+
+    #[test]
+    fn test_parse_game_three_outs_reset() {
+        // Play 1 (top 1st): Single — runner on 1B. bases_after="100".
+        // Play 2 (top 1st): Triple play — 3 outs recorded with the runner on 1B
+        //   still present (bases_after still shows "001" from the triple advance,
+        //   but internal current_bases is cleared by the outs_after >= 3 branch).
+        // Play 3 (bottom 1st): bases_before must be "000" (cleared by both the
+        //   3-out reset AND the half-inning change — belt and suspenders).
+        //   This confirms the 3-out reset path ran: without it the internal state
+        //   would carry "001" into the half-inning check, which would clear it
+        //   anyway, but the 3-out branch is the primary guard.
+        let raw = parse_json(r#"{
+            "allPlays": [
+                {
+                    "about": {
+                        "atBatIndex": 0,
+                        "halfInning": "top",
+                        "inning": 1,
+                        "isComplete": true
+                    },
+                    "result": { "event": "Single", "eventType": "single" },
+                    "matchup": {
+                        "batter":    { "id": 1, "fullName": "Batter A" },
+                        "batSide":   { "code": "R" },
+                        "pitcher":   { "id": 2, "fullName": "Pitcher" },
+                        "pitchHand": { "code": "R" }
+                    },
+                    "count": { "balls": 0, "strikes": 0, "outs": 0 },
+                    "runners": [{
+                        "movement": { "start": null, "end": "1B", "isOut": false },
+                        "details":  { "runner": { "id": 1, "fullName": "Batter A" } }
+                    }],
+                    "playEvents": []
+                },
+                {
+                    "about": {
+                        "atBatIndex": 1,
+                        "halfInning": "top",
+                        "inning": 1,
+                        "isComplete": true
+                    },
+                    "result": { "event": "Triple Play", "eventType": "triple_play" },
+                    "matchup": {
+                        "batter":    { "id": 3, "fullName": "Batter B" },
+                        "batSide":   { "code": "R" },
+                        "pitcher":   { "id": 2, "fullName": "Pitcher" },
+                        "pitchHand": { "code": "R" }
+                    },
+                    "count": { "balls": 0, "strikes": 0, "outs": 3 },
+                    "runners": [
+                        {
+                            "movement": { "start": null, "end": null, "isOut": true },
+                            "details":  { "runner": { "id": 3, "fullName": "Batter B" } }
+                        },
+                        {
+                            "movement": { "start": "1B", "end": null, "isOut": true },
+                            "details":  { "runner": { "id": 1, "fullName": "Batter A" } }
+                        },
+                        {
+                            "movement": { "start": null, "end": null, "isOut": true },
+                            "details":  { "runner": { "id": 5, "fullName": "Runner C" } }
+                        }
+                    ],
+                    "playEvents": []
+                },
+                {
+                    "about": {
+                        "atBatIndex": 2,
+                        "halfInning": "bottom",
+                        "inning": 1,
+                        "isComplete": true
+                    },
+                    "result": { "event": "Strikeout", "eventType": "strikeout" },
+                    "matchup": {
+                        "batter":    { "id": 6, "fullName": "Batter C" },
+                        "batSide":   { "code": "L" },
+                        "pitcher":   { "id": 7, "fullName": "Pitcher 2" },
+                        "pitchHand": { "code": "L" }
+                    },
+                    "count": { "balls": 0, "strikes": 3, "outs": 1 },
+                    "runners": [{
+                        "movement": { "start": null, "end": null, "isOut": true },
+                        "details":  { "runner": { "id": 6, "fullName": "Batter C" } }
+                    }],
+                    "playEvents": []
+                }
+            ]
+        }"#);
+
+        let game = parse_game(1, raw);
+        assert_eq!(game.plays.len(), 3);
+
+        // Play 1 ends with a runner on 1B.
+        let (play1, _) = &game.plays[0];
+        assert_eq!(play1.bases_after, "100");
+
+        // Play 2 starts with that runner on 1B; the triple play clears the bases.
+        let (play2, _) = &game.plays[1];
+        assert_eq!(play2.bases_before, "100");
+        assert_eq!(play2.outs_after, 3);
+
+        // Play 3 (new half-inning) starts clean — the 3-out reset and half-inning
+        // reset both guarantee this.
+        let (play3, _) = &game.plays[2];
+        assert_eq!(play3.bases_before, "000");
+    }
+
+    #[test]
+    fn test_parse_game_null_isout() {
+        // "isOut": null should deserialize as false (custom deserializer).
+        // "isOut" omitted entirely should also be false (serde default).
+        let raw = parse_json(r#"{
+            "allPlays": [
+                {
+                    "about": {
+                        "atBatIndex": 0,
+                        "halfInning": "top",
+                        "inning": 1,
+                        "isComplete": true
+                    },
+                    "result": { "event": "Single", "eventType": "single" },
+                    "matchup": {
+                        "batter":    { "id": 1, "fullName": "Batter" },
+                        "batSide":   { "code": "R" },
+                        "pitcher":   { "id": 2, "fullName": "Pitcher" },
+                        "pitchHand": { "code": "R" }
+                    },
+                    "count": { "balls": 0, "strikes": 0, "outs": 0 },
+                    "runners": [
+                        {
+                            "movement": { "start": null, "end": "1B", "isOut": null },
+                            "details":  { "runner": { "id": 1, "fullName": "Batter" } }
+                        }
+                    ],
+                    "playEvents": []
+                },
+                {
+                    "about": {
+                        "atBatIndex": 1,
+                        "halfInning": "top",
+                        "inning": 1,
+                        "isComplete": true
+                    },
+                    "result": { "event": "Single", "eventType": "single" },
+                    "matchup": {
+                        "batter":    { "id": 3, "fullName": "Batter 2" },
+                        "batSide":   { "code": "R" },
+                        "pitcher":   { "id": 2, "fullName": "Pitcher" },
+                        "pitchHand": { "code": "R" }
+                    },
+                    "count": { "balls": 0, "strikes": 0, "outs": 0 },
+                    "runners": [
+                        {
+                            "movement": { "start": null, "end": "2B" },
+                            "details":  { "runner": { "id": 3, "fullName": "Batter 2" } }
+                        },
+                        {
+                            "movement": { "start": "1B", "end": "3B" },
+                            "details":  { "runner": { "id": 1, "fullName": "Batter" } }
+                        }
+                    ],
+                    "playEvents": []
+                }
+            ]
+        }"#);
+
+        let game = parse_game(1, raw);
+        assert_eq!(game.plays.len(), 2);
+
+        // Play 1: isOut=null means the batter reached base safely — outs_before=0,
+        // outs_after=0, runner ends up on 1B.
+        let (play1, _) = &game.plays[0];
+        assert_eq!(play1.outs_before, 0);
+        assert_eq!(play1.outs_after, 0);
+        assert_eq!(play1.bases_after, "100");
+
+        // Play 2: isOut omitted entirely — both runners treated as safe.
+        // Runner from 1B advances to 3B; batter goes to 2B.
+        // bases_before="100", bases_after="011"
+        let (play2, _) = &game.plays[1];
+        assert_eq!(play2.bases_before, "100");
+        assert_eq!(play2.outs_before, 0);
+        assert_eq!(play2.outs_after, 0);
+        assert_eq!(play2.bases_after, "011");
+    }
+}

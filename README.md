@@ -2,6 +2,12 @@
 
 A desktop app that applies Markov chain models to real MLB play-by-play data. Built with [Tauri v2](https://v2.tauri.app) (Rust + SvelteKit). Data from the free [MLB Stats API](https://statsapi.mlb.com).
 
+## Screenshots
+
+![Offense — Team vs League Average](assets/offense.png)
+
+![Pitching — Pitch Sequence Analysis](assets/pitching.png)
+
 ## What It Does
 
 ### Offense: What Happens Next?

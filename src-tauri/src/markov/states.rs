@@ -52,3 +52,64 @@ pub fn state_label(state: &str) -> String {
 
     format!("{} out, {}", outs, base_desc)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_all_states_count() {
+        assert_eq!(ALL_STATES.len(), 25);
+        assert_eq!(ACTIVE_STATES.len(), 24);
+    }
+
+    #[test]
+    fn test_absorbing_state_is_last() {
+        assert_eq!(ALL_STATES[24], ABSORBING_STATE);
+        assert!(!ACTIVE_STATES.contains(&ABSORBING_STATE));
+    }
+
+    #[test]
+    fn test_encode_state_normal() {
+        assert_eq!(encode_state(0, "000"), "0_000");
+        assert_eq!(encode_state(1, "100"), "1_100");
+        assert_eq!(encode_state(2, "111"), "2_111");
+    }
+
+    #[test]
+    fn test_encode_state_absorbing() {
+        assert_eq!(encode_state(3, "000"), "3_---");
+        assert_eq!(encode_state(4, "000"), "3_---");
+        assert_eq!(encode_state(100, "000"), "3_---");
+    }
+
+    #[test]
+    fn test_state_index_all_found() {
+        for (i, &state) in ALL_STATES.iter().enumerate() {
+            assert_eq!(state_index(state), Some(i));
+        }
+    }
+
+    #[test]
+    fn test_state_index_unknown() {
+        assert_eq!(state_index("4_000"), None);
+        assert_eq!(state_index(""), None);
+        assert_eq!(state_index("invalid"), None);
+        assert_eq!(state_index("0_999"), None);
+    }
+
+    #[test]
+    fn test_state_label_examples() {
+        assert_eq!(state_label("0_000"), "0 out, Empty");
+        assert_eq!(state_label("1_100"), "1 out, 1B");
+        assert_eq!(state_label("2_111"), "2 out, Loaded");
+        assert_eq!(state_label("0_011"), "0 out, 2B 3B");
+        assert_eq!(state_label("3_---"), "3 Outs (End)");
+    }
+
+    #[test]
+    fn test_state_label_malformed() {
+        assert_eq!(state_label(""), "");
+        assert_eq!(state_label("no_under_score"), "no_under_score");
+    }
+}
