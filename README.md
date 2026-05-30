@@ -27,33 +27,60 @@ Look up any pitcher and see what they throw at every count.
 ### Learning Tab
 Built-in educational content explaining Markov chains, the 25 base-out states, run expectancy math, transition matrices, Shannon entropy, and the data pipeline. Formulas rendered with KaTeX.
 
-## Data Pipeline
+## Getting Started
 
-On first launch, click **"Bootstrap Current Season"** to download play-by-play data for every completed game this season.
+There's no prebuilt download — you run the app by building it from source. That sounds intimidating, but it's three commands once the tools are installed, and the whole thing takes about 10 minutes the first time. No prior Rust or web-dev experience needed.
 
-- **Initial load:** 800+ games, 60,000+ plays, 200,000+ pitches. Takes about 3-4 minutes.
-- **Updates:** After the first load, click "Update Data" to pull only new games since your last import. Typically 12-15 games per day — a few seconds.
-- **All local:** Everything is stored in a SQLite database on your machine. No account, no cloud, no API key.
+### Step 1 — Install the tools
 
-## Development
+This app is built with [Tauri](https://v2.tauri.app), which needs three things plus some OS-level libraries:
 
-### Prerequisites
-- [Rust](https://rustup.rs) (stable)
-- [Node.js](https://nodejs.org) (18+)
-- [pnpm](https://pnpm.io) (10+)
+| Tool | What it is | Install |
+|------|-----------|---------|
+| **Rust** | Powers the app's backend and the math engine | [rustup.rs](https://rustup.rs) — run the one-line installer, accept the defaults |
+| **Node.js** (18+) | Runs the web-based interface during build | [nodejs.org](https://nodejs.org) — grab the "LTS" version |
+| **pnpm** (10+) | Installs the interface's dependencies | After Node is installed, run `npm install -g pnpm` |
 
-### Setup
+You also need your platform's build dependencies for Tauri. Pick your OS:
+
+- **macOS** — install Xcode Command Line Tools: `xcode-select --install`
+- **Windows** — install the [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) and [WebView2](https://developer.microsoft.com/microsoft-edge/webview2/) (preinstalled on Windows 11)
+- **Linux** — install the WebKit/GTK packages listed in the [Tauri Linux setup guide](https://v2.tauri.app/start/prerequisites/#linux)
+
+> Full, always-current details are in the [Tauri prerequisites guide](https://v2.tauri.app/start/prerequisites/) if anything above is unclear.
+
+### Step 2 — Get the code and run it
+
 ```bash
-pnpm install
-pnpm tauri dev
+git clone https://github.com/WalrusQuant/mlb-markov.git
+cd mlb-markov
+pnpm install      # downloads the interface dependencies (one time)
+pnpm tauri dev    # builds and launches the app
 ```
 
-### Build
+The first `pnpm tauri dev` compiles the Rust backend, so it can take a few minutes. After that it's fast. A desktop window will open when it's ready.
+
+### Step 3 — Load the data
+
+The app ships empty — there's no baseball data inside it. On first launch, click **"Bootstrap Current Season"** on the Home tab to download play-by-play data for every completed game this season. Once it finishes, the Offense and Pitching tabs come to life.
+
+### Building a standalone app (optional)
+
+To produce a double-clickable installer instead of running in dev mode:
+
 ```bash
 pnpm tauri build
 ```
 
-The production binary lands in `src-tauri/target/release/bundle/`.
+The finished app lands in `src-tauri/target/release/bundle/`.
+
+## Data Pipeline
+
+Everything the app shows is computed from data you download yourself on first launch.
+
+- **Initial load:** 800+ games, 60,000+ plays, 200,000+ pitches. Takes about 3-4 minutes.
+- **Updates:** After the first load, click "Update Data" to pull only new games since your last import. Typically 12-15 games per day — a few seconds.
+- **All local:** Everything is stored in a SQLite database on your machine. No account, no cloud, no API key.
 
 ## Tech Stack
 
