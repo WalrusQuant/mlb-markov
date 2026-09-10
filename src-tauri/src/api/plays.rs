@@ -51,8 +51,6 @@ struct ApiAbout {
 struct ApiResult {
     #[serde(default)]
     event: String,
-    #[serde(default)]
-    event_type: String,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -97,8 +95,6 @@ struct ApiCount {
 struct ApiRunner {
     #[serde(default)]
     movement: ApiMovement,
-    #[serde(default)]
-    details: ApiRunnerDetails,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -115,12 +111,6 @@ where
     D: serde::Deserializer<'de>,
 {
     Option::<bool>::deserialize(deserializer).map(|opt| opt.unwrap_or(false))
-}
-
-#[derive(Debug, Default, Deserialize)]
-struct ApiRunnerDetails {
-    #[serde(default)]
-    runner: ApiPerson,
 }
 
 #[derive(Debug, Deserialize)]
